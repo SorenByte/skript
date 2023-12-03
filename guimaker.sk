@@ -10,6 +10,36 @@ import:
 options:
 	filepath: plugins/Skript/scripts/guiMakerGuis.sk
 
+# Command for players to initiate GUI creation.
+command createGui [<text>] [<integer>]:
+	permission: skript.createGui
+	trigger:
+		if arg-1 and arg-2 are set:
+			set {_name} to arg-1
+			set {_rows} to arg-2
+			set {_rows} to 6 if arg-2 > 6
+			set {_rows} to 1 if arg-2 < 1
+			set metadata tag "guiName" of player to {_name}
+			set metadata tag "guiRows" of player to {_rows}
+			set metadata tag "isCreatingGui" of player to 1
+			send formatted "&6&lINFO &7Open a chest to create a gui named &e%{_name}%&7 with &e%{_rows}%&7 rows."
+			stop
+		send "&c&lERROR &7Invalid argument(s)! &bExample: /createGui Example 5" to player
+
+on tab complete of "/createGui":
+	set tab completions for position 1 to "<name>"
+	set tab completions for position 2 to "<rows>"
+
+# Event handler to save a player's chest inventory as a GUI layout.
+on inventory open:
+	event-inventory is a chest inventory
+	metadata tag "isCreatingGui" of player is set
+	delete metadata tag "isCreatingGui" of player
+	wait 1 tick
+	guiMaker(player, metadata tag "guiName" of player, metadata tag "guiRows" of player)
+	delete metadata tag "guiName" of player
+	delete metadata tag "guiRows" of player
+
 # Function to write GUI configurations to the specified file using Skript-reflect.
 function writeToFile(text: strings, filepath: string):
 	set {_path} to Path.of("%{_filepath}%")
@@ -20,8 +50,10 @@ function writeToFile(text: strings, filepath: string):
 
 # Main function for creating GUIs based on a player's open chest inventory.
 function guiMaker(p: player, name: string, rows: integer):
+	set {_funcName} to unformatted {_name}
+	replace all " " in {_funcName} with ""
 	set {_timespan} to now
-	add "function %{_name}%(p: player):" to {_lines::*}
+	add "function %{_funcName}%(p: player):" to {_lines::*}
 	add "    set {_gui} to a chest inventory with %{_rows}% rows named ""%{_name}%""" to {_lines::*}
 	loop ({_rows}*9) times:
 		set {_slot} to slot (loop-number - 1) of {_p}'s current inventory
@@ -59,34 +91,4 @@ function guiMaker(p: player, name: string, rows: integer):
 	writeToFile({_lines::*}, "{@filepath}")
 	set {_differ} to "%difference between now and {_timespan}%"
 	replace " seconds" in {_differ} with "s"
-	send "&a&lSUCCESS &7You have created a gui named &e%{_name}%&7! &f(%{_differ}%)" to {_p}
-
-# Command for players to initiate GUI creation.
-command createGui [<text>] [<integer>]:
-	permission: skript.createGui
-	trigger:
-		if arg-1 and arg-2 are set:
-			set {_name} to arg-1
-			set {_rows} to arg-2
-			set {_rows} to 6 if arg-2 > 6
-			set {_rows} to 1 if arg-2 < 1
-			set metadata tag "guiName" of player to {_name}
-			set metadata tag "guiRows" of player to {_rows}
-			set metadata tag "isCreatingGui" of player to 1
-			send formatted "&6&lINFO &7Open a chest to create a gui named &e%{_name}%&7 with &e%{_rows}%&7 rows."
-			stop
-		send "&c&lERROR &7Invalid argument(s)! &bExample: /createGui Example 5" to player
-
-on tab complete of "/createGui":
-	set tab completions for position 1 to "<name>"
-	set tab completions for position 2 to "<rows>"
-
-# Event handler to save a player's chest inventory as a GUI layout.
-on inventory open:
-	event-inventory is a chest inventory
-	metadata tag "isCreatingGui" of player is set
-	delete metadata tag "isCreatingGui" of player
-	wait 1 tick
-	guiMaker(player, metadata tag "guiName" of player, metadata tag "guiRows" of player)
-	delete metadata tag "guiName" of player
-	delete metadata tag "guiRows" of player
+	send "&a&lSUCCESS &7You have created a gui named &e%colored {_name}%&7! &f(%{_differ}%)" to {_p}
