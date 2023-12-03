@@ -1,0 +1,92 @@
+
+# Import necessary Java classes for file handling and system operations.
+import:
+	java.nio.file.Files
+	java.nio.file.Path
+	java.nio.file.StandardOpenOption
+	java.lang.System
+
+# Define the path for the file where all GUI configurations will be stored.
+options:
+	filepath: plugins/Skript/scripts/guiMakerGuis.sk
+
+# Function to write GUI configurations to the specified file using Skript-reflect.
+function writeToFile(text: strings, filepath: string):
+	set {_path} to Path.of("%{_filepath}%")
+	set {_nl} to System.lineSeparator()
+	loop {_text::*}:
+		set {_line} to "%loop-value%%{_nl}%"
+		Files.writeString({_path}, "%{_line}%", StandardOpenOption.CREATE, StandardOpenOption.APPEND)
+
+# Main function for creating GUIs based on a player's open chest inventory.
+function guiMaker(p: player, name: string, rows: integer):
+	set {_timespan} to now
+	add "function %{_name}%(p: player):" to {_lines::*}
+	add "    set {_gui} to a chest inventory with %{_rows}% rows named ""%{_name}%""" to {_lines::*}
+	loop ({_rows}*9) times:
+		set {_slot} to slot (loop-number - 1) of {_p}'s current inventory
+		if type of {_slot} is air:
+			add "    set slot %loop-number - 1% of {_gui} to air" to {_lines::*}
+			continue
+		else if type of {_slot} is not air:
+			set {_nbt} to nbt copy of {_slot}
+			delete tag "display" of {_nbt}
+			"%{_nbt}%" is "{}"
+			delete {_nbt}
+		loop lore of {_slot}:
+			add loop-value-2 to {_lore::*}
+		set {_formattedLore} to join {_lore::*} with "%%nl%%"
+		if {_formattedLore} is not set:
+			set {_formattedLore} to ""
+		else:
+			set {_formattedLore} to "with lore ""%{_formattedLore}%"""
+		if display name of {_slot} is set:
+			set {_displayName} to "with name ""%display name of {_slot}%"""
+		else:
+			set {_displayName} to ""
+		replace all "§" in {_formattedLore} and {_displayName} with "&"
+		set {_nbtText} to ""
+		if {_nbt} is set:
+			set {_nbt} to "%{_nbt}%"
+			replace all """" in {_nbt} with "\[replaceThis\]"
+			replace all "\[replaceThis\]" in {_nbt} with """"""
+			add "    set {_nbt} to nbt compound from ""%{_nbt}%""" to {_lines::*}
+			set {_nbtText} to "with nbt {_nbt}"
+		add "    set slot %loop-number - 1% of {_gui} to %item amount of {_slot}% %type of {_slot}% %{_displayName}% %{_formattedLore}% %{_nbtText}%" to {_lines::*}
+		delete {_lore::*}
+		delete {_nbt}
+	add "    open {_gui} for {_p}" to {_lines::*}
+	writeToFile({_lines::*}, "{@filepath}")
+	set {_differ} to "%difference between now and {_timespan}%"
+	replace " seconds" in {_differ} with "s"
+	send "&a&lSUCCESS &7You have created a gui named &e%{_name}%&7! &f(%{_differ}%)" to {_p}
+
+# Command for players to initiate GUI creation.
+command createGui [<text>] [<integer>]:
+	permission: skript.createGui
+	trigger:
+		if arg-1 and arg-2 are set:
+			set {_name} to arg-1
+			set {_rows} to arg-2
+			set {_rows} to 6 if arg-2 > 6
+			set {_rows} to 1 if arg-2 < 1
+			set metadata tag "guiName" of player to {_name}
+			set metadata tag "guiRows" of player to {_rows}
+			set metadata tag "isCreatingGui" of player to 1
+			send formatted "&6&lINFO &7Open a chest to create a gui named &e%{_name}%&7 with &e%{_rows}%&7 rows."
+			stop
+		send "&c&lERROR &7Invalid argument(s)! &bExample: /createGui Example 5" to player
+
+on tab complete of "/createGui":
+	set tab completions for position 1 to "<name>"
+	set tab completions for position 2 to "<rows>"
+
+# Event handler to save a player's chest inventory as a GUI layout.
+on inventory open:
+	event-inventory is a chest inventory
+	metadata tag "isCreatingGui" of player is set
+	delete metadata tag "isCreatingGui" of player
+	wait 1 tick
+	guiMaker(player, metadata tag "guiName" of player, metadata tag "guiRows" of player)
+	delete metadata tag "guiName" of player
+	delete metadata tag "guiRows" of player
