@@ -1,0 +1,62 @@
+
+function giveQuest(p: player, quest: string, requirements: strings):
+	yaml list "quest:%{_quest}%" from {_p}'s uuid is not set
+	set yaml list "quest:%{_quest}%" from {_p}'s uuid to {_requirements::*}
+	send "%nl%&a&l! &fYou've been given the quest &e'%{_quest}%'&f." to {_p}
+	loop {_requirements::*}:
+		send "&8%loop-iteration%. &a%loop-value%" to {_p}
+
+function completeQuestRequirement(p: player, quest: string, requirements: strings):
+	yaml list "quest:%{_quest}%" from {_p}'s uuid is set
+	#set yaml list "quest:%{_quest}%" from {_p}'s uuid to {_requirements::*}
+	set {_req::*} to yaml list "quest:%{_quest}%" from {_p}'s uuid
+	loop {_req::*}:
+		if {_requirements::*} contains loop-value:
+			loop-value does not contain "COMPLETED|"
+			set {_req::%loop-iteration%} to "COMPLETED|%loop-value%"
+			add loop-value to {_completed::*}
+			add "&8%loop-iteration%. &7&m%loop-value%" to {_msgs::*}
+			continue
+		else if loop-value contains "COMPLETED|":
+			add 1 to {_c}
+			set {_r::*} to split loop-value at "|"
+			add "&8%loop-iteration%. &7&m%{_r::2}%" to {_msgs::*}
+			continue
+		add "&8%loop-iteration%. &a%loop-value%" to {_msgs::*}
+	set yaml list "quest:%{_quest}%" from {_p}'s uuid to {_req::*}
+	send "%nl%&a&l! &fQuest &e'%{_quest}%'" to {_p}
+	send {_msgs::*} to {_p}
+	{_c} = size of {_req::*}
+	completeQuest({_p}, {_quest})
+
+command /setQuestItem <text>:
+	permission: op
+	trigger:
+		set {questItem::%arg-1%} to player's held item
+		send "&a&l! &7You set &6{questItem::%arg-1%}&7 to %display name of player's held item ? translate component from type of player's held item%"
+
+function completeQuest(p: player, quest: string):
+	yaml list "quest:%{_quest}%" from {_p}'s uuid is set
+	delete yaml list "quest:%{_quest}%" from {_p}'s uuid
+	set {_rewards::*} to getQuestRewards({_quest})
+	{_rewards::*} is set
+	send "%nl%&a&lQUEST COMPLETE" to {_p}
+	send "&aRewards:" to {_p}
+	loop {_rewards::*}:
+		set {_split::*} to split loop-value at "|"
+		if {_split::1} is "money":
+			add "%{_split::2}%" parsed as a number to {_p}'s balance
+			send "&a+ $%{_split::2}%" to {_p}
+		if {_split::1} is "permission":
+			AddPermission({_p}, {_split::2})
+			send "&a+ Permission %{_split::2}%" to {_p}
+		if {_split::1} is "item":
+			set {_i} to {questItem::%{_split::2}%}
+			give {_p} {_i}
+			send "&a+ &f%display name of {_i} ? translate component from type of {_i}%" to {_p}
+
+#permission|item|money
+function getQuestRewards(q: string) :: strings:
+	if {_q} is "test":
+		set {_return::*} to "money|1000", "item|questitem3"
+	return {_return::*}

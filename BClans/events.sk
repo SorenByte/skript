@@ -1,0 +1,494 @@
+
+
+#     ▽ Adds 1 clan kill to the clans clankills variable if the killed player is not inside of their clan. ▽
+
+
+on death:
+    victim is player
+    attacker is player
+    {inClan::%attacker's uuid%} is not {inClan::%victim's uuid%}
+    incStat({inClan::%attacker's uuid%}, "Kills", 1)
+
+
+#     ▽ Sending pending clan invite to players that join. ▽
+
+
+on join:
+    if {pendingInvites::%player's uuid%} is set:
+        wait 10 ticks
+        specialText(player, "&6&lCLAN INVITE%nl%%nl%&eYou have a pending clan invite from %yaml value "clanSettingColor" from {inClan::%player's uuid%}%%{Clan::%{pendingInvites::%player's uuid%}%}%&e!%nl%%nl%<cmd:/clan join %{pendingInvites::%player's uuid%}%><tooltip:&aClick here to accept the invite!>&a&lACCEPT<tooltip:><cmd:> &8| <cmd:/clan reject %{pendingInvites::%player's uuid%}%><tooltip:&cClick here to reject the invite!>&c&lREJECT<tooltip:><cmd:>%nl%&7&o(this invite may expire soon!)")
+        play sound "block.note_block.pling" with pitch 2 for player
+    if {inClan::%player's uuid%} is set:
+        loadClan({inClan::%player's uuid%})
+        set yaml value "lastOnline" from {inClan::%player's uuid%} to now
+        save yaml {inClan::%player's uuid%}
+
+
+#     ▽ Updates the last time the clan was online on quit if no other clan members are online. ▽
+
+
+on quit:
+    {inClan::%player's uuid%} is set
+    loadClan({inClan::%player's uuid%})
+    wait 1 tick
+    loop yaml list "allMembers" from {inClan::%player's uuid%}:
+        if loop-value parsed as player is offline:
+            add 1 to {_offline}
+        else:
+            add 1 to {_online}
+    if {_online} is not set:
+        set yaml value "lastOnline" from {inClan::%player's uuid%} to now
+        save yaml {inClan::%player's uuid%}
+        unload yaml {inClan::%player's uuid%}
+
+
+#     ▽ Updating clanLastOnline variable when the server stops. ▽
+
+
+on skript stop:
+    loop all players where [{inClan::%input's uuid%} is set]:
+        load yaml {inClan::%loop-player's uuid%} if yaml {inClan::%loop-player's uuid%} is not loaded
+        set yaml value "lastOnline" from {inClan::%loop-player's uuid%} to now
+        unload yaml {inClan::%loop-player's uuid%}
+
+
+#     ▽ Cancelling clan damage if player doesnt have friendly fire enabled. ▽
+
+
+on damage:
+    if {inClan::%attacker's uuid%} is {inClan::%victim's uuid%}:
+        if yaml value "clanSettingFriendlyFire" from {inClan::%attacker's uuid%} is false:
+            cancel event
+            if metadata tag "friendlyFireNotification" of attacker is not set:
+                errorText(attacker, "&cYou cannot damage your clan members without enabling friendly fire!")
+                set metadata tag "friendlyFireNotification" of attacker to 1
+                wait 3 second
+                delete metadata tag "friendlyFireNotification" of attacker
+        else:
+            stop
+
+
+#     ▽ Placeholder API Placeholder for clan tag. ▽
+
+
+on placeholderapi placeholder request for the prefix "bclans":
+	if the identifier is "clan_tag":
+		if {inClan::%player's uuid%} is set:
+			loadClan({inClan::%player's uuid%})
+			set {_color} to yaml value "clanSettingColor" from "%{inClan::%player's uuid%}%"
+			set {_tag} to yaml value "Clan" from "%{inClan::%player's uuid%}%"
+			set the result to " %{_color}%[%{_tag}%]"
+		else:
+			set the result to ""
+	if the identifier is "clan_tag_raw":
+		if {inClan::%player's uuid%} is set:
+			loadClan({inClan::%player's uuid%})
+			set {_tag} to yaml value "Clan" from "%{inClan::%player's uuid%}%"
+			set the result to "%{_tag}%"
+		else:
+			set the result to "&7None"
+	if the identifier is "clan_tag_raw_colored":
+		if {inClan::%player's uuid%} is set:
+			loadClan({inClan::%player's uuid%})
+			set {_color} to yaml value "clanSettingColor" from "%{inClan::%player's uuid%}%"
+			set {_tag} to yaml value "Clan" from "%{inClan::%player's uuid%}%"
+			set the result to "%{_color}%%{_tag}%"
+		else:
+			set the result to "&7None"
+	if the identifier is "clan_stat_kills":
+		if {inClan::%player's uuid%} is set:
+			loadClan({inClan::%player's uuid%})
+			set {_kills} to yaml value "Kills" from "%{inClan::%player's uuid%}%"
+			set the result to {_kills}
+		else:
+			set the result to "&7None"
+	if the identifier is "clan_stat_kills_formatted":
+		if {inClan::%player's uuid%} is set:
+			loadClan({inClan::%player's uuid%})
+			set {_kills} to yaml value "Kills" from "%{inClan::%player's uuid%}%"
+			set {_color} to yaml value "clanSettingColor" from "%{inClan::%player's uuid%}%"
+			set the result to "%{_color}%%formatNumber({_kills})%"
+		else:
+			set the result to "&7None"
+	if the identifier is "clan_stat_gold_gain":
+		if {inClan::%player's uuid%} is set:
+			loadClan({inClan::%player's uuid%})
+			set {_kills} to yaml value "Kills" from "%{inClan::%player's uuid%}%"
+			set {_color} to yaml value "clanSettingColor" from "%{inClan::%player's uuid%}%"
+			set the result to "%{_color}%%round(100 + ({_kills} / 5000) * 100)%"
+		else:
+			set the result to "&7None"
+	if the identifier is "clan_stat_members":
+		if {inClan::%player's uuid%} is set:
+			loadClan({inClan::%player's uuid%})
+			set {_members::*} to yaml list "allMembers" from "%{inClan::%player's uuid%}%"
+			set {_color} to yaml value "clanSettingColor" from "%{inClan::%player's uuid%}%"
+			set the result to "%{_color}%%size of {_members::*}%/%yaml value "clanUpgradeMaxMembers" from {inClan::%player's uuid%}%"
+		else:
+			set the result to "&7None"
+	if the identifier is "clan_stat_gold":
+		if {inClan::%player's uuid%} is set:
+			loadClan({inClan::%player's uuid%})
+			set {_bal} to formatNumber(yaml value "clanBalance" from "%{inClan::%player's uuid%}%")
+			set {_color} to yaml value "clanSettingColor" from "%{inClan::%player's uuid%}%"
+			set the result to "%{_color}%%{_bal}%₲"
+		else:
+			set the result to "&7None"
+	if the identifier is "clan_stat_creation":
+		if {inClan::%player's uuid%} is set:
+			loadClan({inClan::%player's uuid%})
+			set {_creationDate} to yaml value "creationDate" from "%{inClan::%player's uuid%}%"
+			set {_color} to yaml value "clanSettingColor" from "%{inClan::%player's uuid%}%"
+			set the result to "%{_color}%%difference between now and {_creationDate}%"
+		else:
+			set the result to "&7"
+
+
+#     ▽ Chat related things such as clan chat, setting clan motd, creating a clan, and inviting players. ▽
+
+
+on chat:
+    if metadata tag "isUsingClanChat" of player is set:
+        cancel event
+        make player execute command "/cc %message%"
+    if metadata tag "isCreatingClan" of player is set:
+        make player execute command "/c create %message%"
+        cancel event
+        {inClan::%player's uuid%} is set
+        delete metadata tag "isCreatingClan" of player
+        openMainGui(player)
+    if metadata tag "isSettingMOTD" of player is set:
+        make player execute command "/c setting motd %message%"
+        delete metadata tag "isSettingMOTD" of player
+        cancel event
+        openSettingsGui(player)
+    if metadata tag "isInvitingPlayer" of player is set:
+        make player execute command "/c invite %message%"
+        delete metadata tag "isInvitingPlayer" of player
+        cancel event
+        openManagerGui(player)
+
+
+#     ▽ Teleporting players that are not in a clan out of the box world. ▽
+
+
+every 1 second:
+    loop all players where [input is not op]:
+        {inClan::%loop-player's uuid%} is not set
+        world of loop-player is ("boxworld" parsed as a world)
+        teleport loop-player to {spawn}
+
+
+#     ▽ Prevents players from leaving their box using SkBee bounds. ▽
+
+
+on bound exit:
+    player is not op
+    wait 1 tick
+    world of player is ("boxworld" parsed as a world)
+    event-string is "%{inClan::%player's uuid%}%"
+    loadClan({inClan::%player's uuid%})
+    set {_location} to yaml value "boxLoc" from "%{inClan::%player's uuid%}%"
+    teleport player to {_location}
+    errorText(player, "&cPlease do not try to escape your box!")
+    send "&4%player%&c just tried to escape their box!" to all players where [input has permission "staff"]
+
+
+#     ▽ Tab completions for the clan commands using SkBee ▽
+
+
+on tab complete of "/clan" or "/c":
+    add "info" and "list" and "help" to {_tabComplete::*}
+    add "create" and "join" and "gui" and "reject" to {_tabComplete::*} if {inClan::%player's uuid%} is not set
+    if {inClan::%player's uuid%} is set:
+        add "leave" and "box" and "warp" and "vault" and "chat" to {_tabComplete::*} if {inClan::%player's uuid%} is set
+        add "upgrade" and "disband" and "setting" and "promote" and "demote" and "invite" and "kick" and "ban" and "unban" and "setwarp" and "delwarp" and "gui" and "transfer" to {_tabComplete::*} if yaml value "Owner" from {inClan::%player's uuid%} or yaml list "Admins" from {inClan::%player's uuid%} contains player's uuid
+    add "force-promote" and "force-disband" and "force-join" and "force-demote" and "lastactive" to {_tabComplete::*} if player is op
+    set tab completions for position 1 to {_tabComplete::*}
+    if {inClan::%player's uuid%} is set:
+        if tab arg-1 is "transfer":
+            loadClan({inClan::%player's uuid%})
+            set {_owner} to yaml value "Owner" from {inClan::%player's uuid%}
+            {_owner} is player's uuid
+            set {_clanmembers::*} to yaml list "Members" from {inClan::%player's uuid%}
+            loop {_clanmembers::*}:
+                add "%loop-value%" parsed as offline player to {_members::*}
+            set tab completions for position 2 to {_members::*}
+
+        if tab arg-1 is "vault":
+            set tab completions for position 2 to "withdraw" and "deposit"
+
+        if tab arg-1 is "upgrade":
+            set tab completions for position 2 to "boxSize" and "maxMembers" and "vault"
+
+        if tab arg-1 is "setting":
+            set tab completions for position 2 to "public" and "friendlyFire" and "color" and "motd"
+
+            if tab arg-2 is "public":
+                set tab completions for position 3 to "true" and "false"
+
+            if tab arg-2 is "friendlyFire":
+                set tab completions for position 3 to "true" and "false"
+
+            if tab arg-2 is "motd":
+                set {_motd} to yaml value "clanSettingMOTD" from {inClan::%player's uuid%}
+                set tab completions for position 3 to {_motd}
+
+            if tab arg-2 is "color":    
+                add "gray" to {_tabCompletion::*}
+                add "white" to {_tabCompletion::*} if yaml value "Kills" from {inClan::%player's uuid%} > 25
+                add "yellow" to {_tabCompletion::*} if yaml value "Kills" from {inClan::%player's uuid%} > 50
+                add "gold" to {_tabCompletion::*} if yaml value "Kills" from {inClan::%player's uuid%} > 75
+                add "red" to {_tabCompletion::*} if yaml value "Kills" from {inClan::%player's uuid%} > 100
+                add "lime" to {_tabCompletion::*} if yaml value "Kills" from {inClan::%player's uuid%} > 125
+                add "green" to {_tabCompletion::*} if yaml value "Kills" from {inClan::%player's uuid%} > 150
+                add "lightblue" to {_tabCompletion::*} if yaml value "Kills" from {inClan::%player's uuid%} > 175
+                add "aqua" to {_tabCompletion::*} if yaml value "Kills" from {inClan::%player's uuid%} > 200
+                add "blue" to {_tabCompletion::*} if yaml value "Kills" from {inClan::%player's uuid%} > 225
+                add "magenta" to {_tabCompletion::*} if yaml value "Kills" from {inClan::%player's uuid%} > 250
+                add "purple" to {_tabCompletion::*} if yaml value "Kills" from {inClan::%player's uuid%} > 275
+                add "black" to {_tabCompletion::*} if yaml value "Kills" from {inClan::%player's uuid%} > 300
+                set tab completions for position 3 to {_tabCompletion::*}
+
+        if tab arg-1 is "promote":
+            loop yaml list "Members" from {inClan::%player's uuid%}:
+                add "%loop-value%" parsed as offline player to {_members::*}
+            set tab completions for position 2 to {_members::*}
+
+        if tab arg-1 is "demote":
+            loop yaml list "Admins" from {inClan::%player's uuid%}:
+                add "%loop-value%" parsed as offline player to {_admins::*}
+            set tab completions for position 2 to {_admins::*}
+
+        if tab arg-1 is "kick":
+            loop yaml list "Members" from {inClan::%player's uuid%}:
+                add "%loop-value%" parsed as offline player to {_members::*}
+            set tab completions for position 2 to {_members::*}
+
+        if tab arg-1 is "ban":
+            set tab completions for position 2 to all players where [input is not player]
+
+        if tab arg-1 is "unban":
+            loop yaml list "Banlist" from {inClan::%player's uuid%}:
+                add "%loop-value%" parsed as offline player to {_list::*}
+            set tab completions for position 2 to {_list::*}
+
+        if tab arg-1 is "invite":
+            set tab completions for position 2 to all players where [{inClan::%input's uuid%} is not set]
+
+        if tab arg-1 is "warp":
+            set tab completions for position 2 to yaml list "Warps" from {inClan::%player's uuid%}
+
+        if tab arg-1 is "delwarp":
+            set tab completions for position 2 to yaml list "Warps" from {inClan::%player's uuid%}
+
+    if tab arg-1 is "force-join":
+        player is op
+        set tab completions for position 2 to {allClans::*}
+
+    if tab arg-1 is "lastactive":
+        player is op
+        set tab completions for position 2 to {allClans::*}
+
+    if tab arg-1 is "force-disband":
+        player is op
+        set tab completions for position 2 to {allClans::*}
+
+    if tab arg-1 is "force-promote":
+        player is op
+        loop yaml list "Members" from {inClan::%player's uuid%}:
+            add "%loop-value%" parsed as offline player to {_members::*}
+        set tab completions for position 2 to {_members::*}
+
+    if tab arg-1 is "force-demote":
+        player is op
+        loop yaml list "Admins" from {inClan::%player's uuid%}:
+            add "%loop-value%" parsed as offline player to {_admins::*}
+        set tab completions for position 2 to {_admins::*}
+
+    if tab arg-1 is "info":
+        set tab completions for position 2 to {allClans::*}
+
+    if tab arg-1 is "reject":
+        if {pendingInvites::%player's uuid%} is set:
+            set tab completions for position 2 to {pendingInvites::%player's uuid%}
+        else:
+            set tab completions for position 2 to "You have no pending clan invites!"
+
+    if tab arg-1 is "join":
+        if {allPublicClans::*} or {pendingInvites::%player's uuid%} is set:
+            set tab completions for position 2 to {allPublicClans::*} and {pendingInvites::%player's uuid%}
+        else:
+            set tab completions for position 2 to "There are currently no public clans!"
+
+
+#     ▽ Clan gui shit. ▽
+
+
+on inventory click:
+    if display name of event-inventory is "&6Create a Clan!":
+        cancel event
+        if clicked slot is 13:
+            close inventory of player
+            set metadata tag "isCreatingClan" of player to 1
+            specialText(player, "&eType the name of your clan in chat!")
+
+#     ▽ Settings menu. ▽
+
+    if display name of event-inventory is "&aYour clans settings and upgrades.":
+        cancel event
+        if clicked slot is 10:
+            close inventory of player
+            specialText(player, "&ePlease use ""/c setting color"" to more easily select colors!")
+        if clicked slot is 12:
+            if yaml value "clanSettingFriendlyFire" from {inClan::%player's uuid%} is true:
+                make player execute command "/c setting friendlyFire false"
+                yaml value "clanSettingFriendlyFire" from {inClan::%player's uuid%} is false
+                set event-slot to iron sword with all flags hidden named "&cFriendly Fire" with lore "&7Friendly fire is currently &cdisabled&7.%nl%%nl%&aClick to enable friendly fire"
+                loop all players where [display name of input's current inventory is "&aYour clans settings."]:
+                    if isClanMember(player, loop-player) is true:
+                        set slot 12 of loop-player's current inventory to iron sword with all flags hidden named "&cFriendly Fire" with lore "&7Friendly fire is currently &cdisabled&7.%nl%%nl%&aClick to enable friendly fire"
+            else:
+                make player execute command "/c setting friendlyFire true"
+                yaml value "clanSettingFriendlyFire" from {inClan::%player's uuid%} is true
+                set event-slot to iron sword of mending 1 with all flags hidden named "&aFriendly Fire" with lore "&7Friendly fire is currently &aenabled&7.%nl%%nl%&aClick to disable friendly fire"
+                loop all players where [display name of input's current inventory is "&aYour clans settings."]:
+                    if isClanMember(player, loop-player) is true:
+                        set slot 12 of loop-player's current inventory to iron sword of mending 1 with all flags hidden named "&aFriendly Fire" with lore "&7Friendly fire is currently &aenabled&7.%nl%%nl%&aClick to disable friendly fire"
+        if clicked slot is 14:
+            if yaml value "clanSettingPublic" from {inClan::%player's uuid%} is true:
+                make player execute command "/c setting public false"
+                yaml value "clanSettingPublic" from {inClan::%player's uuid%} is false
+                set event-slot to ender pearl named "&cClan Publicity" with lore "&7Your clan is currently &cprivate&7.%nl%%nl%&aClick to make your clan public"
+                loop all players where [display name of input's current inventory is "&aYour clans settings."]:
+                    if isClanMember(player, loop-player) is true:
+                        set slot 14 of loop-player's current inventory to ender pearl named "&cClan Publicity" with lore "&7Your clan is currently &cprivate&7.%nl%%nl%&aClick to make your clan public"
+            else:
+                make player execute command "/c setting public true"
+                yaml value "clanSettingPublic" from {inClan::%player's uuid%} is true
+                set event-slot to eye of ender of mending 1 with all flags hidden named "&aClan Publicity" with lore "&7Your clan is currently &apublic&7.%nl%%nl%&aClick to make your clan private"
+                loop all players where [display name of input's current inventory is "&aYour clans settings."]:
+                    if isClanMember(player, loop-player) is true:
+                        set slot 14 of loop-player's current inventory to eye of ender of mending 1 with all flags hidden named "&aClan Publicity" with lore "&7Your clan is currently &apublic&7.%nl%%nl%&aClick to make your clan private"
+        if clicked slot is 28:
+            close inventory of player
+            make player execute command "/c upgrade boxSize"
+            wait 1 second
+            openSettingsGui(player)
+        if clicked slot is 30:
+            close inventory of player
+            make player execute command "/c upgrade maxMembers"
+            wait 1 second
+            openSettingsGui(player)
+        if clicked slot is 32:
+            close inventory of player
+            make player execute command "/c upgrade vault"
+            wait 1 second
+            openSettingsGui(player)
+                    
+        if clicked slot is 16:
+            set metadata tag "isSettingMOTD" of player to 1
+            close inventory of player
+            specialText(player, "&eEnter your new MOTD in chat!")
+        if event-slot is barrier:
+            openMainGui(player)
+        save yaml {inClan::%player's uuid%}
+
+#     ▽ Main menu. ▽
+
+    if display name of event-inventory is "&bMain Menu":
+        cancel event
+        if clicked slot is 13:
+            openSettingsGui(player)
+        if clicked slot is 16:
+            openManagerGui(player)
+        if clicked slot is 10:
+            openWarpGui(player)
+
+#     ▽ Pick which type of member to manage menu. ▽
+
+    if display name of event-inventory is "&aManage clan members.":
+        cancel event
+        if display name of clicked slot contains "Manage members":
+            if size of yaml list "Members" from {inClan::%player's uuid%} > 0:
+                openMemberGui(player)
+            else:
+                errorText(player, "&cYour clan does not have any members!")
+                set {_s} to event-slot
+                set event-slot to red dye named "&cYour clan does not have any members!"
+                wait 3 second
+                set event-slot to {_s}
+        if clicked slot is 13:
+            close inventory of player
+            specialText(player, "&eType the name of an online player you want to invite in chat!")
+            set metadata tag "isInvitingPlayer" of player to 1
+        if display name of clicked slot contains "Manage admins":
+            if size of yaml list "Admins" from {inClan::%player's uuid%} > 0:
+                openAdminGui(player)
+            else:
+                errorText(player, "&cYour clan does not have any admins!")
+                set {_s} to event-slot
+                set event-slot to red dye named "&cYour clan does not have any admins!"
+                wait 3 second
+                set event-slot to {_s}
+        if clicked slot is 22:
+            openMainGui(player)
+        save yaml {inClan::%player's uuid%}
+
+#     ▽ Member manager menu. ▽
+
+    if display name of event-inventory is "&aMember manager.":
+        cancel event
+        if event-item is player skull:
+            if click type is middle mouse button:
+                make player execute command "/c promote %uncolored display name of event-slot%"
+            else if click type is right mouse button with shift:
+                make player execute command "/c kick %uncolored display name of event-slot%"
+            else if click type is left mouse button with shift:
+                make player execute command "/c ban %uncolored display name of event-slot%"
+            openMemberGui(player)
+        if event-slot is barrier:
+            openManagerGui(player)
+        save yaml {inClan::%player's uuid%}
+
+#     ▽ Admin manager menu. ▽
+
+    if display name of event-inventory is "&cAdmin manager.":
+        cancel event
+        if event-item is player skull:
+            if click type is middle mouse button:
+                make player execute command "/c demote %uncolored display name of event-slot%"
+                openAdminGui(player)
+        if clicked slot is 22:
+            openManagerGui(player)
+        save yaml {inClan::%player's uuid%}
+
+#     ▽ Warp manager menu. ▽
+
+    if display name of event-inventory is "&aManage clan warps.":
+        cancel event
+        if event-item is beacon:
+            if click type is left mouse button:
+                make player execute command "/c warp %uncolored display name of event-slot%"
+                close inventory of player
+            if click type is middle mouse button:
+                make player execute command "/c delwarp %uncolored display name of event-slot%"
+                openWarpGui(player)
+        if clicked slot is 22:
+            openMainGui(player)
+        save yaml {inClan::%player's uuid%}
+
+
+#     ▽ World corruption bullshit. ▽
+
+
+on world unload:
+    event-world is "boxworld"
+    wait 10 ticks
+    world file "%event-world%" does not exist
+    loop {allClans::*}:
+        loadClan(loop-value)
+        set yaml value "boxLoc" from loop-value to "Not set"
+        save yaml loop-value
+        wait 1 tick
+    send "&c%nl%&4&k||| &c&l<tooltip:&7All of the box locations have been deleted due to the box world not existing!>ALL BOX LOCATIONS HAVE BEEN DELETED &4&k|||%nl%&c" to all players where [input is op]

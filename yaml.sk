@@ -1,0 +1,23 @@
+options:
+	filepath: plugins\Skript\scripts\playerdata\
+
+on join:
+	loadPlayerData(player)
+
+on first join:
+	loadPlayerData(player)
+	
+on quit:
+	save yaml player's uuid
+	unload yaml player's uuid
+
+every 1 minute:
+	loop all players:
+		if yaml loop-player's uuid is not loaded:
+			loadPlayerData(loop-player)
+			stop
+		save yaml loop-player's uuid
+
+function loadPlayerData(p: player):
+	load yaml "{@filepath}%{_p}'s uuid%.yml" as {_p}'s uuid
+	set yaml value "username" from {_p}'s uuid to "%{_p}%"

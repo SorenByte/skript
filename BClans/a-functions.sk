@@ -1,0 +1,532 @@
+options:
+    SPECIALDASH: &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m &6&m	
+    DASH: &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m &8&m
+    ERRORDASH: &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m &4&m
+
+# Please do not rename this file, doing so will cause this file to be loaded after other ones causing function values to not come through upon reloading. (THIS ONLY HAPPENS ON RELOAD SO THE FUNCTION VALUES WILL COME THROUGH AFTER RELOADING)
+
+import:
+ com.sk89q.worldedit.bukkit.BukkitAdapter
+ com.sk89q.worldedit.WorldEdit
+ com.sk89q.worldedit.regions.CuboidRegion
+ com.sk89q.worldedit.function.mask.BlockTypeMask
+ com.sk89q.worldedit.world.block.BlockType
+
+
+#     ▽ Setting and replacing blocks using worldedit API. (BIG THANKS TO PIKACHU IN SKUNITY!!!) ▽
+
+
+effect fawe replace all %itemtypes% between %location% and %location% with %itemtype% [:(quickly)]:
+  parse:
+    set {_quick} to true if parse tags contains "quickly" otherwise false
+    continue
+  trigger:
+    delay effect
+    create new section with {_blocksToReplace::*}, {_cornerOne}, {_cornerTwo}, {_replacementBlock} and {_quick} stored in {_replacer}:
+      stop if world of {_cornerOne} is not world of {_cornerTwo}
+      set {_worldeditWorld} to BukkitAdapter.adapt(world of {_cornerOne})
+      set {_editSession} to WorldEdit.getInstance().newEditSessionBuilder().world({_worldeditWorld}).fastMode({_quick}).build()
+      loop {_blocksToReplace::*}:
+        add BukkitAdapter.asBlockType(loop-value.getMaterial()) to {_block types::*}
+      set {_mask} to new BlockTypeMask({_worldeditWorld}, [{_block types::*} as BlockType])
+      set {_region} to new CuboidRegion(BukkitAdapter.asBlockVector({_cornerOne}), BukkitAdapter.asBlockVector({_cornerTwo}))
+      {_editSession}.replaceBlocks({_region}, {_mask}, BukkitAdapter.asBlockState({_replacementBlock}.getRandom()))
+      {_editSession}.flushQueue()
+    run section {_replacer} async with arguments exprs-1, expr-2, expr-3, expr-4 and {_quick} and wait
+    continue
+
+effect fawe set blocks between %location% and %location% to %itemtype% [:(quickly)]:
+  parse:
+    set {_quick} to true if parse tags contains "quickly" otherwise false
+    continue
+  trigger:
+    delay effect
+    create section with {_cornerOne}, {_cornerTwo}, {_new type} and {_quick} and store it in {_setter}:
+      stop if world of {_cornerOne} is not world of {_cornerTwo}
+      set {_editSession} to WorldEdit.getInstance().newEditSessionBuilder().world(BukkitAdapter.adapt(world of {_cornerOne})).fastMode({_quick}).build()
+      set {_region} to new CuboidRegion(BukkitAdapter.asBlockVector({_cornerOne}), BukkitAdapter.asBlockVector({_cornerTwo}))
+      {_editSession}.setBlocks({_region}, BukkitAdapter.asBlockState({_new type}.getRandom()))
+      {_editSession}.flushQueue()
+    run section {_setter} async with arguments expr-1, expr-2, expr-3 and {_quick} and wait
+    continue
+
+
+#     ▽ Generating boxes. ▽
+
+
+function genBox(p: player, l: location, i: integer):
+    set {_loc1} to {_l} ~ vector({_i}, -11, {_i})
+    set {_loc2} to {_l} ~ vector({_i} - ({_i} * 2), 9, {_i} - ({_i} * 2))
+    fawe set blocks between {_loc1} and {_loc2} to bedrock quickly
+    set {_loc1} to {_l} ~ vector({_i} - 1, 0, {_i} - 1)
+    set {_loc2} to {_l} ~ vector(({_i} - ({_i} * 2) + 1), 9, ({_i} - ({_i} * 2) + 1))
+    delete bound with id "%{inClan::%{_p}'s uuid%}%"
+    create a full bound with id "%{inClan::%{_p}'s uuid%}%" between {_loc1} and {_loc2}
+    fawe set blocks between {_loc1} and {_loc2} to air quickly
+    set {_loc1} to {_l} ~ vector({_i}, 19, {_i})
+    set {_loc2} to {_l} ~ vector(({_i} - ({_i} * 2)), 9, ({_i} - ({_i} * 2)))
+    fawe set blocks between {_loc1} and {_loc2} to barrier quickly
+
+function genBoxNoBound(l: location, i: integer):
+    set {_loc1} to {_l} ~ vector({_i}, -11, {_i})
+    set {_loc2} to {_l} ~ vector({_i} - ({_i} * 2), 9, {_i} - ({_i} * 2))
+    fawe set blocks between {_loc1} and {_loc2} to bedrock quickly
+    set {_loc1} to {_l} ~ vector({_i} - 1, 0, {_i} - 1)
+    set {_loc2} to {_l} ~ vector(({_i} - ({_i} * 2) + 1), 9, ({_i} - ({_i} * 2) + 1))
+    fawe set blocks between {_loc1} and {_loc2} to air quickly
+    set {_loc1} to {_l} ~ vector({_i}, 19, {_i})
+    set {_loc2} to {_l} ~ vector(({_i} - ({_i} * 2)), 9, ({_i} - ({_i} * 2)))
+    fawe set blocks between {_loc1} and {_loc2} to barrier quickly
+
+function genBoxUpgrade(p: player, l: location, i: integer):
+    set {_loc1} to {_l} ~ vector({_i}, -11, {_i})
+    set {_loc2} to {_l} ~ vector({_i} - ({_i} * 2), 9, {_i} - ({_i} * 2))
+    fawe replace all bedrock, barrier and air between {_loc1} and {_loc2} with bedrock quickly
+    set {_loc1} to {_l} ~ vector({_i} - 1, 0, {_i} - 1)
+    set {_loc2} to {_l} ~ vector(({_i} - ({_i} * 2) + 1), 9, ({_i} - ({_i} * 2) + 1))
+    delete bound with id "%{inClan::%{_p}'s uuid%}%"
+    create a full bound with id "%{inClan::%{_p}'s uuid%}%" between {_loc1} and {_loc2}
+    fawe replace all bedrock, barrier and air between {_loc1} and {_loc2} with air quickly
+    set {_loc1} to {_l} ~ vector({_i}, 19, {_i})
+    set {_loc2} to {_l} ~ vector(({_i} - ({_i} * 2)), 9, ({_i} - ({_i} * 2)))
+    fawe replace all bedrock, barrier and air between {_loc1} and {_loc2} with barrier quickly
+
+
+#     ▽ BClans version console function. ▽
+
+
+function versionText():
+    send "_____________________________" to console
+    send "" to console
+    send "   > Loaded BClans v%yaml value "Version" from "bClansConfig"%" to console
+    send "   > By Bcbble" to console
+    send "_____________________________" to console
+
+
+#     ▽ Console errors. ▽
+
+
+function logFunctionError(origin: string, errors: strings):
+    log {_errors::*} to "bclans/%{_origin}%.log"
+    send "An error was just logged to ""bclans/%{_origin}%.log""!" to console
+
+
+#     ▽ The text that gets sent when a command error occurs. ▽
+
+
+function errorText(p: player, t: text):
+    send "" to {_p}
+    send "{@ERRORDASH}" to {_p}
+    send formatted "&c&l! &c%{_t}%" to {_p}
+    send "{@ERRORDASH}" to {_p}
+    play sound "entity.enderman.teleport" with volume 1000000 with pitch 0 for {_p}
+
+
+#     ▽ The text that gets sent for normal messages. ▽
+
+
+function normalText(p: player, t: text):
+    send "" to {_p}
+    send "{@DASH}" to {_p}
+    send formatted "%{_t}%" to {_p}
+    send "{@DASH}" to {_p}
+
+
+#     ▽ The text that gets sent for special messages. ▽
+
+
+function specialText(p: player, t: text):
+    send "" to {_p}
+    send "{@SPECIALDASH}" to {_p}
+    send formatted "%{_t}%" to {_p}
+    send "{@SPECIALDASH}" to {_p}
+
+
+#     ▽ A message that gets sent to all of the players clan members. ▽
+
+
+function clanText(p: player, t: text):
+    send "" to all players where [{inClan::%{_p}'s uuid%} is {inClan::%input's uuid%}]
+    send "{@DASH}" to all players where [{inClan::%{_p}'s uuid%} is {inClan::%input's uuid%}]
+    send formatted "%{_t}%" to all players where [{inClan::%{_p}'s uuid%} is {inClan::%input's uuid%}]
+    send "{@DASH}" to all players where [{inClan::%{_p}'s uuid%} is {inClan::%input's uuid%}]
+
+
+#     ▽ Clan creation function. ▽
+
+
+function createClan(p: player, clan: string): #Clan, Kills, Owner, Admins, Members, allMembers, creationDate, clanSettingColor, clanSettingMOTD, clanSettingPublic, clanSettingFriendlyFire, boxLoc, currentInvites, Banlist, Warps, WarpLoc1-3,
+    if yaml file "%{filepath}%%{_clan}%.yml" does not exist:
+        load yaml "%{filepath}%%{_clan}%.yml" as "%{_clan}%"
+        set yaml value "Clan" from "%{_clan}%" to {_clan}
+        set yaml value "Kills" from "%{_clan}%" to 0
+        set yaml value "Owner" from "%{_clan}%" to {_p}'s uuid
+        set yaml list "allMembers" from "%{_clan}%" to {_p}'s uuid
+        set yaml value "creationDate" from "%{_clan}%" to now
+        set yaml value "lastOnline" from "%{_clan}%" to now
+        set yaml value "clanSettingColor" from "%{_clan}%" to "&7"
+        set yaml value "clanSettingMOTD" from "%{_clan}%" to "None"
+        set yaml value "clanSettingPublic" from "%{_clan}%" to false
+        set yaml value "clanSettingFriendlyFire" from "%{_clan}%" to false
+        set yaml value "clanUpgradeBoxSize" from "%{_clan}%" to 5
+        set yaml value "clanUpgradeMaxMembers" from "%{_clan}%" to 12
+        set yaml value "clanUpgradeMaxBalance" from "%{_clan}%" to 12000
+        set yaml value "clanBalance" from "%{_clan}%" to 0
+        set yaml value "boxLoc" from "%{_clan}%" to "Not set"
+        save yaml "%{_clan}%"
+
+
+#     ▽ Increments a clan stat by an amount. (amt) ▽
+
+
+function incStat(clan: string, stat: string, amt: number):
+    if yaml file "%{filepath}%%{_clan}%.yml" exists:
+        yaml path "%{_stat}%" in "%{_clan}%" exists
+        if yaml "%{_clan}%" is not loaded:
+            load yaml "%{filepath}%%{_clan}%.yml" as "%{_clan}%"
+        set {_n} to yaml value "%{_stat}%" from "%{_clan}%"
+        add {_amt} to {_n}
+        set yaml value "%{_stat}%" from "%{_clan}%" to {_n}
+        save yaml "%{_clan}%"
+        stop
+    add "A clan by the name ""%{_clan}%"" does not exist!" to {_errors::*} if yaml file "%{filepath}%%{_clan}%.yml" does not exist
+    add "A stat by the name ""%{_stat}%"" does not exist!" to {_errors::*} if yaml path "%{_stat}%" in "%{_clan}%" does not exist
+    logFunctionError("incStat", {_errors::*})
+
+
+#     ▽ Loads a clans yml file onto server memory if it is not already loaded, they must be loaded to modify and get values from. ▽
+
+
+function loadClan(clan: string):
+    if yaml file "%{filepath}%%{_clan}%.yml" exists:
+        if yaml {_clan} is not loaded:
+            load yaml "%{filepath}%%{_clan}%.yml" as "%{_clan}%"
+            stop
+        else if yaml {_clan} is loaded:
+            stop
+    add "A clan by the name %{_clan}% does not exist!" to {_errors::*} if yaml file "%{filepath}%%{_clan}%.yml" does not exist
+    logFunctionError("loadClan", {_errors::*})
+
+
+#     ▽ Makes a player join a clan if they arent already in one, the first argument is the player that joins the clan and the second is the name of the clan that the player is joining. ▽
+
+
+function joinClan(p: player, t: text):
+    if {inClan::%{_p}'s uuid%} is not set:
+        loadClan({_t})
+        set {_owner} to yaml value "Owner" from "%{_t}%"
+        set {_color} to yaml value "clanSettingColor" from "%{_t}%"
+        if yaml list "Banlist" from "%{_t}%" does not contain {_p}'s uuid:
+            clanText({_owner} parsed as offline player, "&a%{_p}%&7 has joined your clan!")
+            set {inClan::%{_p}'s uuid%} to {_t}
+            add {_p}'s uuid to yaml list "Members" from "%{_t}%"
+            add {_p}'s uuid to yaml list "allMembers" from "%{_t}%"
+            delete {pendingInvites::%{_p}'s uuid%}
+            specialText({_p}, "&eYou have joined %{_color}%%{_t}%&e clan!")
+            save yaml {_t}
+        else:
+            errorText({_p}, "&cYou have been banned from the clan &6""%{_color}%%{_t}%&6""")
+    else:
+        errorText({_p}, "&cYou are already in a clan! You cannot join another one!")
+
+
+#     ▽ Kicks a player from their clan. ▽
+
+
+function clanKick(p: player):
+    if {inClan::%{_p}'s uuid%} is set:
+        set {_allMembers::*} to yaml list "allMembers" from {inClan::%{_p}'s uuid%}
+        set {_members::*} to yaml list "Members" from {inClan::%{_p}'s uuid%}
+        set {_owner} to yaml value "Owner" from {inClan::%{_p}'s uuid%}
+        remove all {_p}'s uuid from {_allMembers::*} and {_members::*}
+        set yaml list "Members" from {inClan::%{_p}'s uuid%} to {_members::*}
+        set yaml list "allMembers" from {inClan::%{_p}'s uuid%} to {_allMembers::*}
+        save yaml {inClan::%{_p}'s uuid%}
+        delete {inClan::%{_p}'s uuid%}
+        delete {pendingInvites::%{_p}'s uuid%}
+        clanText({_owner} parsed as offline player, "&a%{_p}% &7has been &6kicked&7 from your clan.")
+        specialText({_p}, "&eYou have been &6kicked&e from the clan &6""%yaml value "clanSettingColor" from {inClan::%{_owner} parsed as offline player's uuid%}%%{inClan::%{_owner} parsed as offline player's uuid%}%&6""&e.")
+
+
+#     ▽ Kicks a player from their clan. ▽
+
+
+function clanDemote(p: player, p2: player):
+    set {_owner} to yaml value "Owner" from {inClan::%{_p}'s uuid%}
+    set {_admins::*} to yaml list "Admins" from {inClan::%{_p}'s uuid%}
+    remove {_p}'s uuid from {_admins::*}
+    set yaml list "Admins" from {inClan::%{_p}'s uuid%} to {_admins::*}
+    add {_p}'s uuid to yaml list "Members" from {inClan::%{_p}'s uuid%}
+    save yaml {inClan::%{_p}'s uuid%}
+    clanText({_owner} parsed as offline player, "&a%{_p}%&7 has been &cdemoted &7to a clan member by &b%{_p2}%&7!")
+
+
+#     ▽ Makes player leave their current clan. ▽
+
+
+function leaveClan(p: player):
+    loadClan({inClan::%{_p}'s uuid%})
+    set {_owner} to yaml value "Owner" from "%{inClan::%{_p}'s uuid%}%"
+    if {_owner} is {_p}'s uuid:
+        errorText({_p}, "&cYou cannot leave a clan you own!")
+        stop
+    else:
+        clanText({_p}, "&a%{_p}% &7has left your clan.")
+        set {_admins::*} to yaml list "Admins" from {inClan::%{_p}'s uuid%}
+        set {_allMembers::*} to yaml list "allMembers" from {inClan::%{_p}'s uuid%}
+        set {_members::*} to yaml list "Members" from {inClan::%{_p}'s uuid%}
+        remove all {_banned}'s uuid from {_admins::*} and {_allMembers::*} and {_members::*}
+        set yaml list "Admins" from {inClan::%{_p}'s uuid%} to {_admins::*}
+        set yaml list "Members" from {inClan::%{_p}'s uuid%} to {_members::*}
+        set yaml list "allMembers" from {inClan::%{_p}'s uuid%} to {_allMembers::*}
+        save yaml {inClan::%{_p}'s uuid%}
+        delete {inClan::%{_p}'s uuid%}
+        delete {pendingInvites::%{_p}'s uuid%}
+
+
+#     ▽ Bans a player from a clan. ▽
+
+
+function clanBan(p: player, banned: offline player):
+    if isClanMember({_p}, {_banned}) is true:
+        delete {inClan::%{_banned}'s uuid%}
+        delete {pendingInvites::%{_banned}'s uuid%}
+        specialText({_banned}, "&eYou have been &cbanned&e from the clan &6""%value "clanSettingColor" from {inClan::%{_p}'s uuid%}%%{inClan::%{_p}'s uuid%}%&6""&e.")
+    loadClan({inClan::%{_p}'s uuid%})
+    set {_admins::*} to yaml list "Admins" from {inClan::%{_p}'s uuid%}
+    set {_allMembers::*} to yaml list "allMembers" from {inClan::%{_p}'s uuid%}
+    set {_members::*} to yaml list "Members" from {inClan::%{_p}'s uuid%}
+    remove all {_banned}'s uuid from {_admins::*} and {_allMembers::*} and {_members::*}
+    set yaml list "Admins" from {inClan::%{_p}'s uuid%} to {_admins::*}
+    set yaml list "Members" from {inClan::%{_p}'s uuid%} to {_members::*}
+    set yaml list "allMembers" from {inClan::%{_p}'s uuid%} to {_allMembers::*}
+    clanText({_p}, "&a%{_banned}% &7has been &cbanned&7 from your clan.")
+    add {_banned}'s uuid to yaml list "Banlist" from "%{inClan::%{_p}'s uuid%}%"
+    save yaml {inClan::%{_p}'s uuid%}
+
+
+#     ▽ Disbands a clan, you must provide a player that is in the clan and the name of the clan you are disbanding. ▽
+
+
+function disbandClan(p: offline player, t: text):
+    loadClan({_t})
+    delete bound with id "%{_t}%"
+    remove {_t} from {allClans::*}
+    remove {_t} from {allPublicClans::*}
+    loop yaml list "allMembers" from {_t}:
+        delete {inClan::%loop-value%}
+    delete yaml "%{_t}%"
+    delete {inClan::%{_p}'s uuid%}
+
+
+#     ▽ Checks if two players are clan members, if they are it returns true, if they are not it returns false. ▽
+
+
+function isClanMember(p: offline player, p2: offline player) :: boolean:
+    if {inClan::%{_p}'s uuid%} is not {inClan::%{_p2}'s uuid%}:
+        return false
+        stop
+    return true
+
+
+#     ▽ Clan creation gui. ▽
+
+
+function openStartGui(p: player):
+    if metadata tag "isCreatingClan" of {_p} is not set:
+        open chest inventory with 3 rows named "&6Create a Clan!" to {_p}
+        set slot (integers between 0 and 26) of {_p}'s current inventory to black glass pane named "&8"
+        set slot 13 of {_p}'s current inventory to gold block named "&eClick Me!" with lore "&7Click here to" and "&7create a clan!"
+    else:
+        errorText({_p}, "&cPlease type the name of your clan in chat!")
+
+
+#     ▽ Main menu gui. ▽
+
+
+function openMainGui(p: player):
+    open chest inventory with 3 rows named "&bMain Menu" to {_p}
+    set slot (integers between 0 and 26) of {_p}'s current inventory to black glass pane named "&8"
+    set slot 10 of {_p}'s current inventory to beacon named "&aManage Clan Warps" with lore "&7Warps Set: %size of yaml list "Warps" from {inClan::%{_p}'s uuid%}%/3%nl%%nl%&aClick to manage your clans warps!"
+    if yaml file "%yaml value "Clans folder" from "bClansConfig"%%{inClan::%{_p}'s uuid%}%.yml" exists:
+        loadClan({inClan::%{_p}'s uuid%})
+        set {_color} to yaml value "clanSettingColor" from {inClan::%{_p}'s uuid%}
+        set {_creationDate} to yaml value "creationDate" from {inClan::%{_p}'s uuid%}
+        loop yaml list "Members" from {inClan::%{_p}'s uuid%}:
+            add loop-value parsed as offline player to {_members::*}
+        if {_members::*} is not set:
+            set {_members::*} to "None"
+        loop yaml list "Admins" from {inClan::%{_p}'s uuid%}:
+            add loop-value parsed as offline player to {_admins::*}
+        if {_admins::*} is not set:
+            set {_admins::*} to "None"
+        set {_publicity} to "&c[Private]"
+        if yaml value "clanSettingPublic" from {inClan::%{_p}'s uuid%} is true:
+            set {_publicity} to "&a[Public]"
+    set slot 13 of {_p}'s current inventory to writable book named "&aClan Information" with lore "%nl%%{_color}%→ %{inClan::%{_p}'s uuid%}% Clan %{_publicity}%%nl%%nl%%{_color}%→ &fOwner: %{_color}%%yaml value "Owner" from {inClan::%{_p}'s uuid%} parsed as offline player%%nl%%{_color}%→ &fAdmins: %{_color}%%{_admins::*}%%nl%%{_color}%→ &fMembers: %{_color}%%{_members::*}%%nl%%{_color}%→ &fTotal Member Count: %{_color}%%size of yaml list "allMembers" from {inClan::%{_p}'s uuid%}%/%yaml value "clanUpgradeMaxMembers" from {inClan::%{_p}'s uuid%}%%nl%%{_color}%→ &fClan Kills: %{_color}%%formatNumber(yaml value "Kills" from {inClan::%{_p}'s uuid%})%%nl%%{_color}%→ &fGold Gain: %{_color}%%round(100 + (yaml value "Kills" from {inClan::%{_p}'s uuid%} / 1000) * 100)%%%%nl%%{_color}%→ &fVault Gold: %{_color}%%formatNumber(yaml value "clanBalance" from {inClan::%{_p}'s uuid%})%₲/%formatNumber(yaml value "clanUpgradeMaxBalance" from {inClan::%{_p}'s uuid%})%₲%nl%%{_color}%→ &fMOTD: %{_color}%%yaml value "clanSettingMOTD" from {inClan::%{_p}'s uuid%}%%nl%%nl%%{_color}%→ %{_color}%%{inClan::%{_p}'s uuid%}%&f was created %{_color}%%difference between now and {_creationDate}%&f ago%nl%%nl%&aClick to change your clans settings and upgrades!"
+    set slot 16 of {_p}'s current inventory to book named "&aManage Clan Members" with lore "%value "clanSettingColor" from {inClan::%{_p}'s uuid%}%→ &fOwner: %value "clanSettingColor" from {inClan::%{_p}'s uuid%}%%yaml value "Owner" from {inClan::%{_p}'s uuid%} parsed as offline player%%nl%%value "clanSettingColor" from {inClan::%{_p}'s uuid%}%→ &fAdmins: %value "clanSettingColor" from {inClan::%{_p}'s uuid%}%%{_admins::*}%%nl%%value "clanSettingColor" from {inClan::%{_p}'s uuid%}%→ &fMembers: %value "clanSettingColor" from {inClan::%{_p}'s uuid%}%%{_members::*}%%nl%%value "clanSettingColor" from {inClan::%{_p}'s uuid%}%→ &fTotal Member Count: %value "clanSettingColor" from {inClan::%{_p}'s uuid%}%%size of yaml list "allMembers" from {inClan::%{_p}'s uuid%}%/%yaml value "clanUpgradeMaxMembers" from {inClan::%{_p}'s uuid%}%%nl%%nl%&aClick to manage your clan members!"
+
+
+#     ▽ Settings gui. ▽
+
+
+function openSettingsGui(p: player):
+    open chest inventory with 5 rows named "&aYour clans settings and upgrades." to {_p}
+    set slot (integers between 0 and 44) of {_p}'s current inventory to black glass pane named "&8"
+    set slot (integers between 9 and 17) of {_p}'s current inventory to light blue glass pane named "&8"
+    set slot (integers between 27 and 35) of {_p}'s current inventory to lime glass pane named "&8"
+    set slot 10 of {_p}'s current inventory to paper named "%value "clanSettingColor" from {inClan::%{_p}'s uuid%}%Clan Color" with lore "%value "clanSettingColor" from {inClan::%{_p}'s uuid%}%&lTHIS &7is your current clan color!%nl%%nl%&aUse /clan setting color <color> to easily select clan colors"
+    if yaml value "clanSettingFriendlyFire" from {inClan::%{_p}'s uuid%} is true:
+        set slot 12 of {_p}'s current inventory to iron sword of mending with all flags hidden named "&aFriendly Fire" with lore "&7Friendly fire is currently &aenabled&7.%nl%%nl%&aClick to disable friendly fire"
+    else:
+        set slot 12 of {_p}'s current inventory to iron sword with all flags hidden named "&cFriendly Fire" with lore "&7Friendly fire is currently &cdisabled&7.%nl%%nl%&aClick to enable friendly fire"
+    if yaml value "clanSettingPublic" from {inClan::%{_p}'s uuid%} is true:
+        set slot 14 of {_p}'s current inventory to eye of ender of mending with all flags hidden named "&aClan Publicity" with lore "&7Your clan is currently &apublic&7.%nl%%nl%&aClick to make your clan private"
+    else:
+        set slot 14 of {_p}'s current inventory to ender pearl named "&cClan Publicity" with lore "&7Your clan is currently &cprivate&7.%nl%%nl%&aClick to make your clan public"
+        set slot 16 of {_p}'s current inventory to book named "%value "clanSettingColor" from {inClan::%{_p}'s uuid%}%Clan MOTD" with lore "%value "clanSettingColor" from {inClan::%{_p}'s uuid%}%%yaml value "clanSettingMOTD" from {inClan::%{_p}'s uuid%}%%nl%%nl%&aClick to change your clans MOTD"
+    set {_slot28} to bedrock named "%value "clanSettingColor" from {inClan::%{_p}'s uuid%}%Upgrade your box size" with lore "&7Current box size: &cYou do not have a box!"
+    if yaml value "boxLoc" from {inClan::%{_p}'s uuid%} is not "Not set":
+        set {_slot28} to bedrock named "%value "clanSettingColor" from {inClan::%{_p}'s uuid%}%Upgrade your box size" with lore "&7Current box size: &a%yaml value "clanUpgradeBoxSize" from {inClan::%{_p}'s uuid%}%x%yaml value "clanUpgradeBoxSize" from {inClan::%{_p}'s uuid%}%%nl%%nl%&cYou already have the largest box!"
+        if yaml value "clanUpgradeBoxSize" from {inClan::%{_p}'s uuid%} < yaml value "maxBoxSize" from "bClansConfig":
+            set {_slot28} to bedrock named "%value "clanSettingColor" from {inClan::%{_p}'s uuid%}%Upgrade your box size" with lore "&7Current box size: &a%yaml value "clanUpgradeBoxSize" from {inClan::%{_p}'s uuid%}%x%yaml value "clanUpgradeBoxSize" from {inClan::%{_p}'s uuid%}%%nl%&7Cost to upgrade: &6%formatNumber(yaml value "clanUpgradeBoxSize" from {inClan::%{_p}'s uuid%} * 2000)%₲%nl%&7Next box size: &a%yaml value "clanUpgradeBoxSize" from {inClan::%{_p}'s uuid%} + 1%x%yaml value "clanUpgradeBoxSize" from {inClan::%{_p}'s uuid%} + 1%%nl%%nl%&aClick to upgrade your box size!"
+    set slot 28 of {_p}'s current inventory to {_slot28}
+    set {_slot30} to ("%yaml value "Owner" from {inClan::%{_p}'s uuid%}%" parsed as offline player)'s skull named "%value "clanSettingColor" from {inClan::%{_p}'s uuid%}%Upgrade your member limit" with lore "&7Current member limit: &a%yaml value "clanUpgradeMaxMembers" from {inClan::%{_p}'s uuid%}%%nl%%nl%&cYou already have the maximum clan size!"
+    if yaml value "clanUpgradeMaxMembers" from {inClan::%{_p}'s uuid%} < yaml value "Maximum Clan Size" from "bClansConfig":
+        set {_slot30} to ("%yaml value "Owner" from {inClan::%{_p}'s uuid%}%" parsed as offline player)'s skull named "%value "clanSettingColor" from {inClan::%{_p}'s uuid%}%Upgrade your member limit" with lore "&7Current member limit: &a%yaml value "clanUpgradeMaxMembers" from {inClan::%{_p}'s uuid%}%%nl%&7Cost to upgrade: &6%formatNumber(yaml value "clanUpgradeMaxMembers" from {inClan::%{_p}'s uuid%} * 250)%₲%nl%&7Next member limit: &a%yaml value "clanUpgradeMaxMembers" from {inClan::%{_p}'s uuid%} + 2%%nl%%nl%&aClick to upgrade your member limit!"
+    set slot 30 of {_p}'s current inventory to {_slot30}
+    set slot 32 of {_p}'s current inventory to chest named "%value "clanSettingColor" from {inClan::%{_p}'s uuid%}%Upgrade your vault capacity" with lore "&7Current vault capacity: &a%formatNumber(yaml value "clanUpgradeMaxBalance" from {inClan::%{_p}'s uuid%})%₲%nl%&7Cost to upgrade: &6%formatNumber(round(yaml value "clanUpgradeMaxBalance" from {inClan::%{_p}'s uuid%} / 2))%₲%nl%&7Next vault capacity: &a%formatNumber(yaml value "clanUpgradeMaxBalance" from {inClan::%{_p}'s uuid%} + yaml value "Max Vault Gold Per Upgrade" from "bClansConfig")%₲%nl%%nl%&aClick to upgrade your vault capacity!"
+    set slot 34 of {_p}'s current inventory to red dye named "&cComing Soon..."
+    set slot 40 of {_p}'s current inventory to barrier named "&cGo Back"
+
+
+#     ▽ Pick which type of member to manage gui. ▽
+
+
+function openManagerGui(p: player):
+    open chest inventory with 3 rows named "&aManage clan members." to {_p}
+    set slot (integers between 0 and 26) of {_p}'s current inventory to black glass pane named "&8"
+    set slot 13 of {_p}'s current inventory to map named "%value "clanSettingColor" from {inClan::%{_p}'s uuid%}%Invite More Members" with lore "&7Click to invite someone!"
+    set slot 11 of {_p}'s current inventory to gray wool named "%value "clanSettingColor" from {inClan::%{_p}'s uuid%}%Manage Members" with lore "&7Click here to manage your members!"
+    set slot 15 of {_p}'s current inventory to red wool named "%value "clanSettingColor" from {inClan::%{_p}'s uuid%}%Manage Admins" with lore "&7Click here to manage your admins!"
+    set slot 22 of {_p}'s current inventory to barrier named "&cGo Back"
+
+
+#     ▽ Manage members gui. ▽
+
+
+function openMemberGui(p: player):
+    set {_n} to 3
+    size of yaml list "Members" from {inClan::%{_p}'s uuid%} > 9:
+        set {_n} to 4
+    size of yaml list "Members" from {inClan::%{_p}'s uuid%} > 18:
+        set {_n} to 5
+    size of yaml list "Members" from {inClan::%{_p}'s uuid%} > 27:
+        set {_n} to 6
+    open chest inventory with {_n} rows named "&aMember manager." to {_p}
+    set slot (integers between 0 and 8) of {_p}'s current inventory to black glass pane named "&8"
+    if {_n} is 3:
+        set slot (integers between 18 and 26) of {_p}'s current inventory to black glass pane named "&8"
+        set slot 22 of {_p}'s current inventory to barrier named "&cGo Back"
+    if {_n} is 4:
+        set slot (integers between 27 and 35) of {_p}'s current inventory to black glass pane named "&8"
+        set slot 31 of {_p}'s current inventory to barrier named "&cGo Back"
+    if {_n} is 5:
+        set slot (integers between 36 and 44) of {_p}'s current inventory to black glass pane named "&8"
+        set slot 40 of {_p}'s current inventory to barrier named "&cGo Back"
+    if {_n} is 6:
+        set slot (integers between 45 and 53) of {_p}'s current inventory to black glass pane named "&8"
+        set slot 49 of {_p}'s current inventory to barrier named "&cGo Back"
+    set {_num} to 0
+    set {_usageList::*} to yaml list "Members" from {inClan::%{_p}'s uuid%}
+    loop {_usageList::*}:
+        set slot {_num} + 9 of {_p}'s current inventory to (loop-value parsed as offline player)'s skull named "&7%loop-value parsed as offline player%" with lore "%value "clanSettingColor" from {inClan::%{_p}'s uuid%}%→ &fBalance: %value "clanSettingColor" from {inClan::%{_p}'s uuid%}%%formatNumber(0 + {balance::%loop-value parsed as offline player's uuid%})%₲%nl%%nl%&aMiddle click to promote %loop-value parsed as offline player%!%nl%&6Shift right click to kick %loop-value parsed as offline player%!%nl%&cShift left click to ban %loop-value parsed as offline player%!"
+        add 1 to {_num}
+
+
+#     ▽ Manage admins gui. ▽
+
+
+function openAdminGui(p: player):
+    set {_n} to 3
+    size of yaml list "Admins" from {inClan::%{_p}'s uuid%} > 9:
+        set {_n} to 4
+    size of yaml list "Admins" from {inClan::%{_p}'s uuid%} > 18:
+        set {_n} to 5
+    size of yaml list "Admins" from {inClan::%{_p}'s uuid%} > 27:
+        set {_n} to 6
+    open chest inventory with {_n} rows named "&cAdmin manager." to {_p}
+    set slot (integers between 0 and 8) of {_p}'s current inventory to red glass pane named "&8"
+    if {_n} is 3:
+        set slot (integers between 18 and 26) of {_p}'s current inventory to red glass pane named "&8"
+        set slot 22 of {_p}'s current inventory to barrier named "&cGo Back"
+    if {_n} is 4:
+        set slot (integers between 27 and 35) of {_p}'s current inventory to red glass pane named "&8"
+        set slot 31 of {_p}'s current inventory to barrier named "&cGo Back"
+    if {_n} is 5:
+        set slot (integers between 36 and 44) of {_p}'s current inventory to red glass pane named "&8"
+        set slot 40 of {_p}'s current inventory to barrier named "&cGo Back"
+    if {_n} is 6:
+        set slot (integers between 45 and 53) of {_p}'s current inventory to red glass pane named "&8"
+        set slot 49 of {_p}'s current inventory to barrier named "&cGo Back"
+    set {_num} to 0
+    set {_usageList::*} to yaml list "Admins" from {inClan::%{_p}'s uuid%}
+    loop {_usageList::*}:
+        set slot {_num} + 9 of {_p}'s current inventory to (loop-value parsed as offline player)'s skull named "&c%loop-value parsed as offline player%" with lore "%value "clanSettingColor" from {inClan::%{_p}'s uuid%}%→ &fBalance: %value "clanSettingColor" from {inClan::%{_p}'s uuid%}%%formatNumber(0 + {balance::%loop-value parsed as offline player's uuid%})%₲%nl%%nl%&aMiddle click to demote %loop-value parsed as offline player%."
+        add 1 to {_num}
+
+
+#     ▽ Manage warps gui. ▽
+
+
+function openWarpGui(p: player):
+    open chest inventory with 3 rows named "&aManage clan warps." to {_p}
+    set slot (integers between 0 and 26) of {_p}'s current inventory to black glass pane named "&8"
+    set {_warp::*} to yaml list "Warps" from {inClan::%{_p}'s uuid%}
+    if yaml path "%{_warp::1}%WarpLocation" in {inClan::%{_p}'s uuid%} exists:
+        set {_warpLocation} to yaml value "%{_warp::1}%WarpLocation" from {inClan::%{_p}'s uuid%}
+        set slot 11 of {_p}'s current inventory to beacon named "&b%{_warp::1}%" with lore "&fLocation: &e%{_warpLocation}%%nl%&aLeft click to teleport to this warp!%nl%&cMiddle click to delete this warp!"
+    else:
+        set slot 11 of {_p}'s current inventory to stone button named "&7Empty Warp Slot" with lore "&8&oUse /clan setwarp <warpName> to set a warp."
+    if yaml path "%{_warp::2}%WarpLocation" in {inClan::%{_p}'s uuid%} exists:
+        set {_warpLocation} to yaml value "%{_warp::2}%WarpLocation" from {inClan::%{_p}'s uuid%}
+        set slot 13 of {_p}'s current inventory to beacon named "&b%{_warp::2}%" with lore "&fLocation: &e%{_warpLocation}%%nl%&aLeft click to teleport to this warp!%nl%&cMiddle click to delete this warp!"
+    else:
+        set slot 13 of {_p}'s current inventory to stone button named "&7Empty Warp Slot" with lore "&8&oUse /clan setwarp <warpName> to set a warp."
+    if yaml path "%{_warp::3}%WarpLocation" in {inClan::%{_p}'s uuid%} exists:
+        set {_warpLocation} to yaml value "%{_warp::3}%WarpLocation" from {inClan::%{_p}'s uuid%}
+        set slot 15 of {_p}'s current inventory to beacon named "&b%{_warp::3}%" with lore "&fLocation: &e%{_warpLocation}%%nl%&aLeft click to teleport to this warp!%nl%&cMiddle click to delete this warp!"
+    else:
+        set slot 15 of {_p}'s current inventory to stone button named "&7Empty Warp Slot" with lore "&8&oUse /clan setwarp <warpName> to set a warp."
+    set slot 22 of {_p}'s current inventory to barrier named "&cGo Back"
+
+
+# ▽  Progress bar ▽
+
+
+function ProgressBar(curr:number,max:number,multiplier:integer) :: text:
+  loop {_multiplier} times:
+    add (1/{_multiplier})*loop-value to {_lis::*}
+  loop {_lis::*}:
+    if {_curr}/{_max} is greater than or equal to loop-value:
+      add "&a&m " to {_string::*}
+    else:
+      add "&7&m " to {_string::*}
+  return join {_string::*} with ""
+
+
+#     ▽ Function to make numbers look nice (I did not make this). ▽
+
+
+function formatNumber(n: object) :: text:
+    if "%{_n}%" contains ".":
+        set {_s::*} to split "%{_n}%" at "."
+        set {_n} to "%formatNumber2({_s::1})%.%last 2 characters of {_s::2}%"
+        return "%{_n}%"
+    else:
+        set {_n} to formatNumber2("%{_n}%")
+        return "%{_n} ? 0%"
+function formatNumber2(b: text) :: text:
+    if length of {_b} > 3:
+        return "%formatNumber2(first length of {_b} - 3 characters of {_b})%,%last 3 characters of {_b}%"
+    return {_b}

@@ -1,0 +1,504 @@
+options:
+	maxLevel: 5
+	interestWait: 1 day
+
+command /bank <string> <string> [<number>]:
+	permission: skript.commands.bank
+	trigger:
+		if arg-1 is "create":
+			if isValidAccount(player, arg-2) is true:
+				send "%nl%&4&l! &cThe bank account &e%arg-2%&c in your name already exists!" to player
+				stop
+			arg-2 is set
+			openBankAccount(player, arg-2)
+			send "%nl%&2&l! &aYou created the bank account &e%arg-2%&a! &7&o(Use /bank open %arg-2% to open it)" to player
+			stop
+		isValidAccount(player, arg-2) is false:
+			send "%nl%&4&l! &cThe bank account &e%arg-2%&c in your name does not exist!" to player
+			errorSound(player)
+			stop
+		if arg-1 is "open":
+			bankViewMenu(player, arg-2)
+		else if arg-1 is "deposit":
+			bankDeposit(player, arg-2, arg-3)
+		else if arg-1 is "withdraw":
+			bankWithdraw(player, arg-2, arg-3)
+		else if arg-1 is "interest":
+			set {_diff} to {@interestWait} - difference between yaml value "BankAccounts.%arg-2%.LastInterest" from player's uuid and now
+			if {_diff} > 0 seconds:
+				send "%nl%&8&l! &7You can claim interest on the account &e%arg-2%&7 in &a%time_format({_diff})%&7." to player
+				stop
+			send "%nl%&2&l! &aInterest on this account is pending! You'll get it soon!" to player 
+		else if arg-1 is "close":
+			if metadata tag "isDeletingAccount" of player is not set:
+				send "%nl%&4&l! &c&lCLOSE BANK ACCOUNT &e%arg-2%&c? &4&l!%nl%&7&o(Deleting a bank account cannot be undone!)%nl%&a&lI'M 100%% SURE%nl%&c&lNEVERMIND" to player
+				set metadata tag "isDeletingAccount" of player to arg-2
+			else if metadata tag "isDeletingAccount" of player is arg-2:
+				delete metadata tag "isDeletingAccountConfirmed" of player
+				delete metadata tag "isDeletingAccount" of player
+				closeBankAccount(player, arg-2)
+				send "%nl%&2&l! &aYou have closed the bank account &e%arg-2%&a." to player
+				successSound(player)
+			else:
+				send "%nl%&4&l! &c&lCLOSE BANK ACCOUNT &e%arg-2%&c? &4&l!%nl%&7&o(Deleting a bank account cannot be undone!)%nl%&a&lI'M 100%% SURE%nl%&c&lNEVERMIND" to player
+				set metadata tag "isDeletingAccount" of player to arg-2
+				stop
+		else if arg-1 is "check":
+			writeCheck(player, arg-2, arg-3)
+		else if arg-1 is "cancel":
+			metadata tag "isDeletingAccount" of player is set
+			send "%nl%&4&l! &cClosing of the account &e%metadata tag "isDeletingAccount" of player%&c has been cancelled." to player
+			delete metadata tag "isDeletingAccount" of player
+			errorSound(player)
+
+on tab complete of "/bank":
+	set tab completions for position 1 to "create", "open", "deposit", "withdraw", "interest", "close"
+	if tab arg-1 is "create":
+		set tab completions for position 2 to "<account name>"
+	else if tab arg-1 is "open" or "close" or "deposit" or "withdraw" or "interest":
+		set {_nodes::*} to yaml node keys "BankAccounts" from player's uuid
+		{_nodes::*} is set
+		set tab completions for position 2 to {_nodes::*}
+
+on right click with flower banner pattern:
+	set {_amt} to double tag "custom_data;moneyAmount" of nbt of held item of player
+	({_amt}+0) > 0
+	add {_amt} to player's balance
+	send "&2&l! &aYou recieved $%{_amt} formatted by commas% from a check!" to player
+	play sound "item.armor.equip_leather" with volume 100 with pitch 1 for player
+	wait 3 ticks
+	play sound "entity.villager.yes" with volume 0.5 with pitch 1 for player
+
+function writeCheck(p: player, account: string, amt: number):
+	isValidAccount({_p}, {_account}) is true
+	set {_amt} to round({_amt}*10)/10
+	set {_wallet} to {_p}'s balance
+	set {_wallet} to round({_wallet}*10)/10
+	if {_wallet}-ceil({_amt}) < 0:
+		if {_wallet} > 0:
+			set {_amt} to {_wallet}
+		else:
+			send "%nl%&4&l! &cYou do not have enough money in your wallet to write a check for &a$%{_amt} formatted by commas%&c!" to {_p}
+			errorSound({_p})
+			stop
+	if {_amt} <= 0:
+		send "%nl%&4&l! &cYou cannot write a check for &a$%{_amt}%&c!" to {_p}
+		errorSound({_p})
+		stop
+	subtract {_amt} from {_p}'s balance
+	set {_item} to flower banner pattern named "&fWritten Check" with lore "&7A check written by &e%{_p}%&7.%nl%%nl%&7Amount: &a$%{_amt} formatted by commas%"
+	add hide_additional_tooltip to item flags of {_item}
+	set double tag "custom_data;moneyAmount" of nbt of {_item} to {_amt}
+	send "%nl%&2&l! &aYou wrote a check for $%{_amt} formatted by commas%!" to {_p}
+	successSound({_p})
+	give {_p} {_item}
+
+function bankDeposit(p: player, account: string, amt: number):
+	isValidAccount({_p}, {_account}) is true
+	set {_amt} to round({_amt}*10)/10
+	set {_wallet} to {_p}'s balance
+	set {_wallet} to round({_wallet}*10)/10
+	if {_wallet}-ceil({_amt}) < 0: #THIS IS AN ISSUE THAT MUST BE FIXED, PLAYERS CANNOT DEPOSIT THEIR LAST LIKE 50 CENTS EVER
+		if {_wallet} > 0:
+			set {_amt} to {_wallet}
+		else:
+			send "%nl%&4&l! &cYou do not have enough money in your wallet to deposit &a$%{_amt} formatted by commas%&c!" to {_p}
+			errorSound({_p})
+			stop
+	if {_amt} <= 0:
+		send "%nl%&4&l! &cYou cannot deposit &a$%{_amt}%&c!" to {_p}
+		errorSound({_p})
+		stop
+	set {_bal} to yaml value "BankAccounts.%{_account}%.Balance" from {_p}'s uuid
+	set {_level} to yaml value "BankAccounts.%{_account}%.Level" from {_p}'s uuid
+	set {_max} to getLevelMaxBalance({_level})
+	if {_bal}+{_amt} > {_max}:
+		set {_amt} to {_max} - {_bal}
+	subtract {_amt} from {_p}'s balance
+	add {_amt} to {_bal}
+	set yaml value "BankAccounts.%{_account}%.Balance" from {_p}'s uuid to {_bal}
+	send "%nl%&2&l! &aYou deposited $%{_amt} formatted by commas% to the account &e%{_account}%&a!" to {_p}
+	successSound({_p})
+
+function bankWithdraw(p: player, account: string, amt: number):
+	isValidAccount({_p}, {_account}) is true
+	set {_amt} to round({_amt}*10)/10
+	set {_bal} to yaml value "BankAccounts.%{_account}%.Balance" from {_p}'s uuid
+	if {_bal}-ceil({_amt}) < 0:
+		if {_bal} > 0:
+			set {_amt} to {_bal}
+		else:
+			send "%nl%&4&l! &cYou do not have enough money in the account &e%{_account}%&c to withdraw &a$%{_amt} formatted by commas%&c!" to {_p}
+			errorSound({_p})
+			stop
+	if {_amt} <= 0:
+		send "%nl%&4&l! &cYou cannot withdraw &a$%{_amt}%&c!" to {_p}
+		errorSound({_p})
+		stop
+	set {_wallet} to {_p}'s balance
+	set {_wallet} to round({_wallet}*10)/10
+	set yaml value "BankAccounts.%{_account}%.Balance" from {_p}'s uuid to {_bal}-{_amt}
+	set {_wallet} to {_wallet}+{_amt}
+	set {_p}'s balance to {_wallet}
+	send "%nl%&2&l! &aYou withdrew $%{_amt} formatted by commas% from the account &e%{_account}%&a!" to {_p}
+	successSound({_p})
+	
+function errorSound(p: player):
+	play sound "block.note_block.basedrum" with volume 100 with pitch 0.5 for {_p}
+	play sound "block.note_block.guitar" with volume 100 with pitch 0 for {_p}
+
+function successSound(p: player):
+	#play sound "block.note_block.chime" with volume 100 with pitch 1 for {_p}
+	play sound "block.note_block.bell" with volume 100 with pitch 1 for {_p}
+	play sound "block.note_block.pling" with volume 100 with pitch 1 for {_p}
+	play sound "block.note_block.iron_xylophone" with volume 100 with pitch 1 for {_p}
+	wait 5 ticks
+	#play sound "block.note_block.chime" with volume 100 with pitch 2 for {_p}
+	play sound "block.note_block.bell" with volume 100 with pitch 2 for {_p}
+	play sound "block.note_block.cow_bell" with volume 100 with pitch 2 for {_p}
+	play sound "block.note_block.iron_xylophone" with volume 100 with pitch 2 for {_p}
+	#wait 5 ticks
+	#play sound "entity.firework_rocket.twinkle" with volume 100 with pitch 1.5 for {_p}
+
+function modifyBankBalance(p: player, account: string, amt: number):
+	isValidAccount({_p}, {_account}) is true
+	set {_bal} to yaml value "BankAccounts.%{_account}%.Balance" from {_p}'s uuid
+	set yaml value "BankAccounts.%{_account}%.Balance" from {_p}'s uuid to {_bal}+{_amt}
+
+function upgradeBankAccount(p: player, account: string, times: integer = 1, noprice: boolean = false):
+	isValidAccount({_p}, {_account}) is true
+	set {_lvl} to yaml value "BankAccounts.%{_account}%.Level" from {_p}'s uuid
+	{_lvl}+{_times} <= {@maxLevel}
+	if {_noprice} is false:
+		set {_bal} to {_p}'s balance
+		loop {_times} times:
+			add getLevelCost({_lvl}+ (loop-iteration - 1)) to {_cost}
+		if {_bal}-{_cost} < 0:
+			send "%nl%&4&l! &cYou do not have enough money in your wallet to upgrade this account!" to {_p}
+			stop
+		set {_bal} to {_bal}-{_cost}
+		set {_p}'s balance to {_bal}
+		send "%nl%&2&l! &aYou have upgraded the account &e%{_account}% &ato &2%getLevelName({_lvl}+{_times})%&a." to {_p}
+	set {_lvl} to {_lvl}+{_times}
+	set yaml value "BankAccounts.%{_account}%.Level" from {_p}'s uuid to {_lvl}
+	set yaml value "BankAccounts.%{_account}%.LastUpgrade" from {_p}'s uuid to now
+
+every 1 minute:
+	loop all players where [yaml node keys "BankAccounts" from input's uuid is set]:
+		loop yaml node keys "BankAccounts" from loop-player's uuid:
+			set {_diff} to {@interestWait} - difference between yaml value "BankAccounts.%loop-value-2%.LastInterest" from loop-player's uuid and now
+			{_diff} <= 0 seconds
+			applyInterest(loop-player, loop-value-2)
+
+every 1 second:
+	loop all players where [metadata tag "menuID" of input is "bankViewMenu"]:
+		set slot 13 of loop-player's current inventory to getBankViewMenuItem(loop-player, metadata tag "account" of loop-player)
+
+function getInterest(bal: number, level: integer) :: number:
+	if {_level} is 0:
+		set {_x} to 1
+	else if {_level} is 1:
+		set {_x} to 1.01
+	else if {_level} is 2:
+		set {_x} to 1.02
+	else if {_level} is 3:
+		set {_x} to 1.03
+	else if {_level} is 4:
+		set {_x} to 1.04
+	else if {_level} is 5:
+		set {_x} to 1.05
+	return {_bal}*{_x}
+
+function applyInterest(p: player, account: string):
+	isValidAccount({_p}, {_account}) is true
+	set {_bal} to yaml value "BankAccounts.%{_account}%.Balance" from {_p}'s uuid
+	set {_level} to yaml value "BankAccounts.%{_account}%.Level" from {_p}'s uuid
+	set {_balInterest} to getInterest({_bal}, {_level})
+	set yaml value "BankAccounts.%{_account}%.Balance" from {_p}'s uuid to {_balInterest}
+	set yaml value "BankAccounts.%{_account}%.LastInterest" from {_p}'s uuid to now
+	if difference between {_bal} and {_balInterest} = 0:
+		send "%nl%&8&l! &7You could of gained interest on the account &e%{_account}%&7 but its a new account.." to {_p}
+		stop
+	send "%nl%&2&l! &aThe bank interest on the account &e%{_account}%&a just made you $%difference between {_bal} and {_balInterest} formatted by commas%!" to {_p}
+	play sound "entity.player.levelup" with volume 100 with pitch 2 for {_p}
+
+function getBankViewMenuItem(p: player, account: string) :: item:
+	set {_balance} to yaml value "BankAccounts.%{_account}%.Balance" from {_p}'s uuid
+	set {_level} to yaml value "BankAccounts.%{_account}%.Level" from {_p}'s uuid
+	set {_levelName} to getLevelName({_level})
+	set {_max} to getLevelMaxBalance({_level})
+	set {_timeReq} to getLevelTimeRequired({_level})
+	set {_lastUpgrade} to yaml value "BankAccounts.%{_account}%.LastUpgrade" from {_p}'s uuid
+	set {_lastUpgrade} to yaml value "BankAccounts.%{_account}%.CreationDate" from {_p}'s uuid if {_lastUpgrade} is not set
+	set {_cost} to getLevelCost({_level})
+	set {_icon} to getLevelIcon({_level})
+	set {_cond} to ""
+	if difference between now and {_lastUpgrade} < {_timeReq}:
+		{_level} < {@maxLevel}
+		set {_cond} to "&7You can upgrade this account in &a%time_format({_timeReq} - difference between now and {_lastUpgrade})%&7."
+	else if {_level} < {@maxLevel}:
+		set {_cond} to "&7Click to upgrade to &a%getLevelName({_level}+1)% &7for &a$%{_cost} formatted by commas%"
+	set {_r} to {_icon} with name "&fAccount ""&e%{_account}%&f""" with lore "%nl%&7Balance: &a$%{_balance} formatted by commas%&7/&a$%{_max} formatted by commas%%nl%&7Type: &e%{_levelName}%%nl%%nl%%{_cond}%"
+	return {_r}
+
+#now formatted as "YY-MM-dd"
+function openBankAccount(p: player, account: string, maxed: boolean = false):
+	isValidAccount({_p}, {_account}) is false
+	set yaml value "BankAccounts.%{_account}%.Balance" from {_p}'s uuid to 0
+	set {_lvl} to {@maxLevel} if {_maxed} is true
+	set yaml value "BankAccounts.%{_account}%.Level" from {_p}'s uuid to {_lvl} ? 0
+	set yaml value "BankAccounts.%{_account}%.CreationDate" from {_p}'s uuid to now
+	set yaml value "BankAccounts.%{_account}%.LastInterest" from {_p}'s uuid to now
+
+function closeBankAccount(p: player, account: string):
+	isValidAccount({_p}, {_account}) is true
+	delete yaml value "BankAccounts.%{_account}%" from {_p}'s uuid
+
+function isValidAccount(p: player, account: string) :: boolean:
+	set {_keys::*} to yaml node keys "BankAccounts" from {_p}'s uuid
+	loop {_keys::*}:
+		loop-value is {_account}
+		return true
+		stop
+	return false
+
+function getLevelName(i: integer) :: string:
+	if {_i} is 0:
+		set {_r} to "New"
+	else if {_i} is 1:
+		set {_r} to "Standard"
+	else if {_i} is 2:
+		set {_r} to "Silver"
+	else if {_i} is 3:
+		set {_r} to "Gold"
+	else if {_i} is 4:
+		set {_r} to "Platinum"
+	else if {_i} is 5:
+		set {_r} to "Diamond"
+	else:
+		set {_r} to "Invalid"
+	return {_r}
+
+function getLevelIcon(i: integer) :: item:
+	if {_i} is 0:
+		set {_r} to {savedItem::newAccount}
+	else if {_i} is 1:
+		set {_r} to {savedItem::standardAccount}
+	else if {_i} is 2:
+		set {_r} to {savedItem::silverAccount}
+	else if {_i} is 3:
+		set {_r} to {savedItem::goldAccount}
+	else if {_i} is 4:
+		set {_r} to {savedItem::platinumAccount}
+	else if {_i} is 5:
+		set {_r} to {savedItem::diamondAccount}
+	else:
+		set {_r} to {savedItem::invalidAccount}
+	return {_r}
+
+function getLevelMaxBalance(i: integer) :: number:
+	if {_i} is 0:
+		set {_r} to 1000
+	else if {_i} is 1:
+		set {_r} to 10000
+	else if {_i} is 2:
+		set {_r} to 25000
+	else if {_i} is 3:
+		set {_r} to 50000
+	else if {_i} is 4:
+		set {_r} to 100000
+	else if {_i} is 5:
+		set {_r} to 250000
+	else:
+		set {_r} to 250000
+	return {_r}
+
+function getLevelCost(i: integer) :: number:
+	if {_i} is 0:
+		set {_r} to 10
+	else if {_i} is 1:
+		set {_r} to 100
+	else if {_i} is 2:
+		set {_r} to 250
+	else if {_i} is 3:
+		set {_r} to 500
+	else if {_i} is 4:
+		set {_r} to 1000
+	#else if {_i} is 5:
+		#set {_r} to 1250
+	else:
+		set {_r} to 1000000
+	return {_r}
+
+function getLevelTimeRequired(i: integer) :: timespan:
+	if {_i} is 0:
+		set {_r} to 12 hours
+	else if {_i} is 1:
+		set {_r} to 24 hours
+	else if {_i} is 2:
+		set {_r} to 48 hours
+	else if {_i} is 3:
+		set {_r} to 72 hours
+	else if {_i} is 4:
+		set {_r} to 96 hours
+	#else if {_i} is 5:
+		#set {_r} to {savedItem::diamondAccount}
+	else:
+		set {_r} to 1 year
+	return {_r}
+
+# -----------
+# || Menus ||
+# -----------
+
+on inventory click:
+	metadata tag "menuID" of player is set
+	cancel event
+	event-inventory is player's current inventory
+	set {_account} to metadata tag "account" of player
+	set {_lastUpgrade} to yaml value "BankAccounts.%{_account}%.LastUpgrade" from player's uuid
+	set {_lastUpgrade} to yaml value "BankAccounts.%{_account}%.CreationDate" from player's uuid if {_lastUpgrade} is not set
+	set {_level} to yaml value "BankAccounts.%{_account}%.Level" from player's uuid
+	set {_bal} to yaml value "BankAccounts.%{_account}%.Balance" from player's uuid
+	set {_timeReq} to getLevelTimeRequired({_level})
+	if metadata tag "menuID" of player is "bankViewMenu":
+		if event-slot is 13:
+			difference between now and {_lastUpgrade} > {_timeReq}
+			upgradeBankAccount(player, {_account})
+			wait 1 tick
+			bankViewMenu(player, {_account})
+		else if event-slot is 29:
+			bankDeposit(player, {_account}, player's balance)
+			bankViewMenu(player, {_account})
+		else if event-slot is 33:
+			bankWithdraw(player, {_account}, {_bal})
+			bankViewMenu(player, {_account})
+		else if event-slot is 30:
+			close inventory of player
+			send "%nl%&8&l! &7Use &b/bank deposit %{_account}% <amount>&7 to deposit money to an account!" to player
+		else if event-slot is 32:
+			close inventory of player
+			send "%nl%&8&l! &7Use &b/bank withdraw %{_account}% <amount>&7 to withdraw money from an account!" to player
+on inventory close:
+	metadata tag "menuID" of player is set
+	wait 1 tick
+	"%current inventory of player%" is "inventory of %player%"
+	delete metadata tag "menuID" of player
+	delete metadata tag "cond" of player
+	delete metadata tag "account" of player
+
+function bankViewMenu(p: player, account: string):
+	isValidAccount({_p}, {_account}) is true
+	set {_gui} to a chest inventory with 6 rows named "&fYou are viewing ""&e%{_account}%&f"""
+	set metadata tag "menuID" of {_p} to "bankViewMenu"
+	set metadata tag "account" of {_p} to {_account}
+	set {_icon} to getBankViewMenuItem({_p}, {_account})
+	set {_bg::1} to black stained glass pane named "&c"
+	set {_bg::2} to lime stained glass pane named "&c"
+	set {_bg::3} to dark gray stained glass pane named "&c"
+	set {_bg::4} to red stained glass pane named "&c"
+	set slot 0 of {_gui} to {_bg::1}
+	set slot 1 of {_gui} to air
+	set slot 2 of {_gui} to air
+	set slot 3 of {_gui} to air
+	set slot 4 of {_gui} to air
+	set slot 5 of {_gui} to air
+	set slot 6 of {_gui} to air
+	set slot 7 of {_gui} to air
+	set slot 8 of {_gui} to {_bg::1}
+	set slot 9 of {_gui} to {_bg::1}
+	set slot 10 of {_gui} to {_bg::2}
+	set slot 11 of {_gui} to {_bg::2}
+	set slot 12 of {_gui} to {_bg::2}
+	set slot 13 of {_gui} to {_icon}
+	set slot 14 of {_gui} to {_bg::2}
+	set slot 15 of {_gui} to {_bg::2}
+	set slot 16 of {_gui} to {_bg::2}
+	set slot 17 of {_gui} to {_bg::1}
+	set slot 18 of {_gui} to {_bg::1}
+	set slot 19 of {_gui} to air
+	set slot 20 of {_gui} to air
+	set slot 21 of {_gui} to air
+	set slot 22 of {_gui} to air
+	set slot 23 of {_gui} to air
+	set slot 24 of {_gui} to air
+	set slot 25 of {_gui} to air
+	set slot 26 of {_gui} to {_bg::1}
+	set slot 27 of {_gui} to {_bg::1}
+	set slot 28 of {_gui} to {_bg::3}
+	set slot 29 of {_gui} to 1 gold block with name "&6Deposit Entire Wallet"
+	set slot 30 of {_gui} to 1 gold ingot with name "&6Deposit"
+	set slot 31 of {_gui} to {_bg::3}
+	set slot 32 of {_gui} to 1 iron ingot with name "&fWithdraw"
+	set slot 33 of {_gui} to 1 iron block with name "&fWithdraw Entire Bank Account"
+	set slot 34 of {_gui} to {_bg::3}
+	set slot 35 of {_gui} to {_bg::1}
+	set slot 36 of {_gui} to {_bg::1}
+	set slot 37 of {_gui} to air
+	set slot 38 of {_gui} to air
+	set slot 39 of {_gui} to air
+	set slot 40 of {_gui} to air
+	set slot 41 of {_gui} to air
+	set slot 42 of {_gui} to air
+	set slot 43 of {_gui} to air
+	set slot 44 of {_gui} to {_bg::1}
+	set slot 45 of {_gui} to {_bg::1}
+	set slot 46 of {_gui} to air
+	set slot 47 of {_gui} to air
+	set slot 48 of {_gui} to {_bg::4}
+	set slot 49 of {_gui} to {_bg::4}
+	set slot 50 of {_gui} to {_bg::4}
+	set slot 51 of {_gui} to air
+	set slot 52 of {_gui} to air
+	set slot 53 of {_gui} to {_bg::1}
+	open {_gui} for {_p}
+
+function bankAccountsMenu(p: player):
+	set {_gui} to a chest inventory with 5 rows named "&f%{_p}%'s Account listings."
+	set metadata tag "menuID" of {_p} to "bankAccountsMenu"
+	set slot 0 of {_gui} to 1 black stained glass pane   
+	set slot 1 of {_gui} to 1 black stained glass pane   
+	set slot 2 of {_gui} to 1 black stained glass pane   
+	set slot 3 of {_gui} to 1 black stained glass pane   
+	set slot 4 of {_gui} to 1 black stained glass pane   
+	set slot 5 of {_gui} to 1 black stained glass pane   
+	set slot 6 of {_gui} to 1 black stained glass pane   
+	set slot 7 of {_gui} to 1 black stained glass pane   
+	set slot 8 of {_gui} to 1 black stained glass pane   
+	set slot 9 of {_gui} to 1 black stained glass pane   
+	set slot 10 of {_gui} to 1 dark gray stained glass pane   
+	set slot 11 of {_gui} to 1 dark gray stained glass pane   
+	set slot 12 of {_gui} to 1 dark gray stained glass pane   
+	set slot 13 of {_gui} to 1 dark gray stained glass pane   
+	set slot 14 of {_gui} to 1 dark gray stained glass pane   
+	set slot 15 of {_gui} to 1 dark gray stained glass pane   
+	set slot 16 of {_gui} to 1 dark gray stained glass pane   
+	set slot 17 of {_gui} to 1 black stained glass pane   
+	set slot 18 of {_gui} to 1 black stained glass pane   
+	set slot 19 of {_gui} to 1 dark gray stained glass pane   
+	set slot 20 of {_gui} to 1 player head item with name "&fAccount ""&7%{_account}%&f""" with lore "%nl%&7Balance: &a$%{_balance}%&7/&a$%{_max}%%nl%&7Level: &e%{_level}%" 
+	set slot 21 of {_gui} to 1 stone button with name "&7Open New Account"  
+	set slot 22 of {_gui} to 1 stone button with name "&7Open New Account"  
+	set slot 23 of {_gui} to 1 stone button with name "&7Open New Account"  
+	set slot 24 of {_gui} to 1 barrier block with name "&cRestricted" with lore "%nl%&7This bank slot is not yet accessible to you yet!%nl%&7To unlock it, visit your nearest banking branch!" 
+	set slot 25 of {_gui} to 1 dark gray stained glass pane   
+	set slot 26 of {_gui} to 1 black stained glass pane   
+	set slot 27 of {_gui} to 1 black stained glass pane   
+	set slot 28 of {_gui} to 1 dark gray stained glass pane   
+	set slot 29 of {_gui} to 1 dark gray stained glass pane   
+	set slot 30 of {_gui} to 1 dark gray stained glass pane   
+	set slot 31 of {_gui} to 1 dark gray stained glass pane   
+	set slot 32 of {_gui} to 1 dark gray stained glass pane   
+	set slot 33 of {_gui} to 1 dark gray stained glass pane   
+	set slot 34 of {_gui} to 1 dark gray stained glass pane   
+	set slot 35 of {_gui} to 1 black stained glass pane   
+	set slot 36 of {_gui} to 1 black stained glass pane   
+	set slot 37 of {_gui} to 1 black stained glass pane   
+	set slot 38 of {_gui} to 1 black stained glass pane   
+	set slot 39 of {_gui} to 1 black stained glass pane   
+	set slot 40 of {_gui} to 1 black stained glass pane   
+	set slot 41 of {_gui} to 1 black stained glass pane   
+	set slot 42 of {_gui} to 1 black stained glass pane   
+	set slot 43 of {_gui} to 1 black stained glass pane   
+	set slot 44 of {_gui} to 1 black stained glass pane   
+	open {_gui} for {_p}

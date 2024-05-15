@@ -1,0 +1,993 @@
+#--------------------------------------------------------------------------------------------------------#
+#                                                                                                        #
+# BBBBBBBBBBBBBBBBB           CCCCCCCCCCCCClllllll                                                       #
+# B::::::::::::::::B       CCC::::::::::::Cl:::::l                                                       #
+# B::::::BBBBBB:::::B    CC:::::::::::::::Cl:::::l                                                       #
+# BB:::::B     B:::::B  C:::::CCCCCCCC::::Cl:::::l                                                       #
+#   B::::B     B:::::B C:::::C       CCCCCC l::::l   aaaaaaaaaaaaa   nnnn  nnnnnnnn        ssssssssss    #
+#   B::::B     B:::::BC:::::C               l::::l   a::::::::::::a  n:::nn::::::::nn    ss::::::::::s   # 
+#   B::::BBBBBB:::::B C:::::C               l::::l   aaaaaaaaa:::::a n::::::::::::::nn ss:::::::::::::s  #
+#   B:::::::::::::BB  C:::::C               l::::l            a::::a nn:::::::::::::::ns::::::ssss:::::s #
+#   B::::BBBBBB:::::B C:::::C               l::::l     aaaaaaa:::::a   n:::::nnnn:::::n s:::::s  ssssss  #
+#   B::::B     B:::::BC:::::C               l::::l   aa::::::::::::a   n::::n    n::::n   s::::::s       #
+#   B::::B     B:::::BC:::::C               l::::l  a::::aaaa::::::a   n::::n    n::::n      s::::::s    #
+#   B::::B     B:::::B C:::::C       CCCCCC l::::l a::::a    a:::::a   n::::n    n::::nssssss   s:::::s  #
+# BB:::::BBBBBB::::::B  C:::::CCCCCCCC::::Cl::::::la::::a    a:::::a   n::::n    n::::ns:::::ssss::::::s #
+# B:::::::::::::::::B    CC:::::::::::::::Cl::::::la:::::aaaa::::::a   n::::n    n::::ns::::::::::::::s  #
+# B::::::::::::::::B       CCC::::::::::::Cl::::::l a::::::::::aa:::a  n::::n    n::::n s:::::::::::ss   #
+# BBBBBBBBBBBBBBBBB           CCCCCCCCCCCCCllllllll  aaaaaaaaaa  aaaa  nnnnnn    nnnnnn  sssssssssss     #
+#                                                                                                        #
+#--------------------------------------------------------------------------------------------------------#
+#                     ____              ____           _       _       _        
+#                    | __ )   _   _    | __ )    ___  | |__   | |__   | |   ___ 
+#                    |  _ \  | | | |   |  _ \   / __| | '_ \  | '_ \  | |  / _ \
+#                    | |_) | | |_| |   | |_) | | (__  | |_) | | |_) | | | |  __/
+#                    |____/   \__, |   |____/   \___| |_.__/  |_.__/  |_|  \___|
+#                            |___/                                             
+
+#                            Help will not be provided for modified sections!
+#                             Please do not claim this Script as your own!
+
+#                       REQUIRED ADDONS → Skript-yaml, SkBee and Skript-reflect
+
+
+#    ▽ skript-reflect import for checking if a player has joined the server before. ▽
+
+
+import:
+	org.bukkit.OfflinePlayer
+
+
+#     ▽ Loading the config ▽
+
+
+on skript start:
+	load yaml "plugins/Skript/scripts/BClans/config.yml" as "bClansConfig" #This must be set to your filepath manually if you have bclans in a folder.
+	save yaml "bClansConfig"
+	versionText()
+	set {filepath} to yaml value "Clans folder" from "bClansConfig"
+	set {econColor} to "&a"
+	set {econSymbol} to "Xp"
+
+
+#    ▽ Main clan command. ▽
+
+
+command /clan [<text>] [<text>] [<text>]:
+	cooldown bypass: op
+	cooldown message: &cYou are trying to use this command too fast! &7(Try again in %remaining time%)
+	cooldown: 1 seconds
+	executable by: players
+	aliases: c
+	trigger:
+
+#     ▽ Clan activity ▽
+		
+		if {inClan::%player's uuid%} is set:
+			loadClan({inClan::%player's uuid%})
+			set yaml value "lastOnline" from {inClan::%player's uuid%} to now
+			save yaml {inClan::%player's uuid%}
+
+#     ▽ /clan gui ▽
+
+		if arg-1 is "gui":
+			if {inClan::%player's uuid%} is set:
+				loadClan({inClan::%player's uuid%})
+				if yaml value "Owner" from {inClan::%player's uuid%} or yaml list "Admins" from {inClan::%player's uuid%} contains player's uuid:
+					if metadata tag "isCreatingClan" and "isSettingMOTD" and "isInvitingPlayer" of player is not set:
+						openMainGui(player)
+					else:
+						errorText(player, "&cPlease type your answer in chat before opening the gui again!")
+				else:
+					errorText(player, "&cOnly your clan leader and clan admins can open the clan gui!")
+			else:
+				openStartGui(player)
+			stop
+
+#     ▽ /clan help ▽
+
+		if arg-1 is not set:
+			make player execute "/clan help"
+			stop
+		if arg-1 is "help":
+			specialText(player, "&3→ &bBClans v%yaml value "Version" from "bClansConfig"% by Bcbble%nl%%nl%&6→ &e/clan create <clanName> &8| &7Creates a clan.%nl%&6→ &e/clan transfer <clanMember> &8| &7Transfers ownership of your clan to another clan member.%nl%&6→ &e/clan invite <player> &8| &7Invites a player to your clan.%nl%&6→ &e/clan join <clanName> &8| &7Join a public clan or a clan you have an invite to.%nl%&6→ &e/clan reject <clanName> &8| &7Rejects an invite to clan you've been invited to.%nl%&6→ &e/clan info <clanName> &8| &7Gives you info on a clan.%nl%&6→ &e/clan leave &8| &7Makes you leave your current clan.%nl%&6→ &e/clan disband &8| &7Deletes your current clan.%nl%&6→ &e/clan list &8| &7Lists all clans.%nl%&6→ &e/clan ban <clanMember> &8| &7Bans a member from your clan.%nl%&6→ &e/clan unban <bannedPlayer> &8| &7Unbans a member from your clan.%nl%&6→ &e/clan kick <clanMember> &8| &7Kicks a member from your clan.%nl%&6→ &e/clan promote &8| &7Promotes a clan member to a clan admin.%nl%&6→ &e/clan demote &8| &7Demotes a clan admin to a clan member.%nl%&6→ &e/clan box &8| &7Creates a clan box for your clan, requires 100 clan kills.%nl%&6→ &e/clan gui &8| &7Opens the clan admin gui.%nl%&6→ &e/clan setwarp <warpName> &8| &7Sets a warp at your location.%nl%&6→ &e/clan warp <warpName> &8| &7Teleports you to a clan warp.%nl%&6→ &e/clan delwarp <warpName> &8| &7Deletes a clan warp.%nl%&6→ &e/clan help &8| &7Brings up this menu.%nl%&6→ &e/clan setting <setting> <settingValue> &8| &7Tweak various clan settings.%nl%&6→ &e/clan chat &8| &7Toggles your clan chat.%nl%&6→ &e/clanchat <message>&8| &7Sends a message to your clanmates.%nl%&6→ &e/clan vault <withdraw, deposit>&8| &7Withdraw or deposit gold into your clan vault.%nl%")
+			stop
+
+#     ▽ /clan force-join <clan name> ▽
+
+		if arg-1 is "force-join":
+			if player is op:
+				if arg-2 is set:
+					if {inClan::%player's uuid%} is not set:
+						if yaml file "%{filePath}%%arg-2%.yml" exists:
+							loadClan(arg-2)
+							joinClan(player, arg-2)
+						else:
+							errorText(player, "&cThat clan does not exist!")
+					else:
+						errorText(player, "&cYou are already in a clan!")
+				else:
+					errorText(player, "&cSpecify a clan to join!")
+			stop
+
+#     ▽ /clan force-disband <clan name> ▽
+
+		if arg-1 is "force-disband":
+			if player is op:
+				if arg-2 is set:
+					if yaml file "%{filePath}%%arg-2%.yml" exists:
+						loadClan(arg-2)
+						set {_player} to yaml value "Owner" from {inClan::%{_player}'s uuid%} parsed as offline player
+						clanText({_player}, "&eYour clan has been disbanded by an admin!")
+						specialText(player, "&cYou have force disbanded the clan %yaml value "clanSettingColor" from {inClan::%player's uuid%}%%arg-2%&c.")
+						disbandClan({_player}, arg-2)
+					else:
+						errorText(player, "&cThat clan does not exist!")
+				else:
+					errorText(player, "&cSpecify a clan to disband!")
+			else:
+				errorText(player, "&cOnly operators can execute this command!")
+			stop
+
+#     ▽ /clan force-promote <player> ▽
+
+		if arg-1 is "force-promote":
+			if player is op:
+				if arg-2 is set:
+					set {_arg2} to arg-2 parsed as offline player
+					if isClanMember(player, {_arg2}) is true:
+						loadClan({inClan::%player's uuid%})
+						if yaml list "Admins" from {inClan::%player's uuid%} and yaml value "Owner" from {inClan::%player's uuid%} does not contain {_arg2}'s uuid:
+							add {_arg2}'s uuid to yaml list "Admins" from {inClan::%player's uuid%}
+							clanText(player, "&b%player% &7has promoted &a%{_arg2}%&7 to clan &cAdmin&7!")
+						else:
+							errorText(player, "&4%arg-2% &cis already a clan admin!")
+					else:
+						errorText(player, "&4%arg-2% &cis not in your clan!")
+				else:
+					errorText(player, "&cSpecify a clan member to promote!")
+			else:
+				errorText(player, "&cOnly operators can execute this command!")
+
+#     ▽ /clan force-demote <player> ▽
+
+		if arg-1 is "force-demote":
+			if player is op:
+				if arg-2 is set:
+					set {_arg2} to arg-2 parsed as offline player
+					if isClanMember(player, {_arg2}) is true:
+						loadClan({inClan::%player's uuid%})
+						if yaml list "Admins" from {inClan::%player's uuid%} contains {_arg2}'s uuid:
+							remove {_arg2}'s uuid from yaml list "Admins" from {inClan::%player's uuid%}
+							clanText(player, "&a%{_arg2}%&7 has been &cdemoted &7to a clan member by &b%player%&7!")
+						else:
+							if yaml value "Owner" from {inClan::%player's uuid%} is not {_arg2}'s uuid:
+								errorText(player, "&4%arg-2% &cis already a member!")
+							else:
+								errorText(player, "&cYou cannot demote yourself!")
+					else:
+						errorText(player, "&4%arg-2% &cis not in your clan!")
+				else:
+					errorText(player, "&cSpecify a clan member to demote!")
+			else:
+				errorText(player, "&cOnly operators can execute this command!")
+
+#     ▽ /clan create <clan name> ▽
+
+		if arg-1 is "create":
+			if {inClan::%player's uuid%} is not set:
+				if arg-2 is set:
+					if length of arg-2 < 10:
+						if length of arg-2 > 1:
+							set {_clan} to uncolored arg-2
+							replace all " " in {_clan} with ""
+							if {_clan} is alphanumeric:
+								if yaml file "%{filePath}%%{_clan}%.yml" does not exist:
+									set metadata tag "clanDisbandCooldown" of player to 1
+									specialText(player, "&eYou have created the clan &2""&7%{_clan}%&2""")
+									createClan(player, "%{_clan}%")
+									add {_clan} to {allClans::*}
+									set {inClan::%player's uuid%} to {_clan}
+									loadClan({inClan::%player's uuid%})
+									wait 5 minutes
+									{inClan::%player's uuid%} is {_clan}
+									delete metadata tag "clanDisbandCooldown" of player
+								else:
+									errorText(player, "&cA clan named &4%{_clan}%&c already exists!")
+							else:
+								errorText(player, "&cYour clan name must be alphanumeric!")
+						else:
+							errorText(player, "&cYour clan name must be longer then 1 letter!")
+					else:
+						errorText(player, "&cYour clan name must be shorter then 10 letters!")
+				else:
+					errorText(player, "&cYou must specify a clan name!")
+			else:
+				errorText(player, "&cYou cannot create a clan whilst being in one!")
+			stop
+
+#     ▽ /clan list ▽
+
+		if arg-1 is "list":
+			if arg-2 parsed as an integer is set:
+				set {_page} to arg-2 parsed as an integer
+				subtract 1 from {_page}
+				set {_n} to 1
+				send "%nl%&e&m     &6 &lCLAN LIST PAGE %formatNumber(arg-2)% &e&m     " if {allClans::%{_n} + ({_page} * 10)%} is set
+				loop {allClans::*}:
+					{allClans::%{_n} + ({_page} * 10)%} is set
+					send "&8%{_n} + ({_page} * 10)%. %yaml value "clanSettingColor" from {allClans::%{_n} + ({_page} * 10)%}%%{allClans::%{_n} + ({_page} * 10)%}%"
+					add 1 to {_n}
+					stop if {_n} > ({_page} + 1) * 10
+			else:
+				errorText(player, "&cPlease enter a numeric page value!")
+			stop
+
+#     ▽ /clan info <clan name> ▽
+
+		if arg-1 is "info":
+			if arg-2 is set:
+				if yaml file "%{filepath}%%arg-2%.yml" exists:
+					set {_status} to 1 if yaml arg-2 is not loaded
+					loadClan(arg-2)
+					set {_color} to yaml value "clanSettingColor" from arg-2
+					set {_creationDate} to yaml value "creationDate" from arg-2
+					loop yaml list "Members" from arg-2:
+						add "%loop-value%" parsed as offline player to {_members::*}
+					if {_members::*} is not set:
+						set {_members::*} to "None"
+					loop yaml list "Admins" from arg-2:
+						add "%loop-value%" parsed as offline player to {_admins::*}
+					if {_admins::*} is not set:
+						set {_admins::*} to "None"
+					set {_publicity} to "&c[Private]"
+					if yaml value "clanSettingPublic" of arg-2 is true:
+						set {_publicity} to "&a[Public]"
+					normalText(player, "%{_color}%→ %arg-2% Clan %{_publicity}%%nl%%nl%%{_color}%→ &fOwner: %{_color}%%yaml value "Owner" from arg-2 parsed as offline player%%nl%%{_color}%→ &fAdmins: %{_color}%%{_admins::*}%%nl%%{_color}%→ &fMembers: %{_color}%%{_members::*}%%nl%%{_color}%→ &fTotal Member Count: %{_color}%%size of yaml list "allMembers" from arg-2%/%yaml value "clanUpgradeMaxMembers" from arg-2%%nl%%{_color}%→ &fClan Kills: %{_color}%%formatNumber(yaml value "Kills" from arg-2)%%nl%%{_color}%→ &fGold Gain: %{_color}%%round(100 + (yaml value "Kills" from arg-2 / 5000) * 100)%%%%nl%%{_color}%→ &fVault Gold: %{_color}%%formatNumber(yaml value "clanBalance" from arg-2)%₲/%formatNumber(yaml value "clanUpgradeMaxBalance" from arg-2)%₲%nl%%{_color}%→ &fMOTD: %{_color}%%yaml value "clanSettingMOTD" from arg-2% %nl%%nl%%{_color}%→ %{_color}%%arg-2%&f was created %{_color}%%difference between now and {_creationDate}%&f ago")
+					unload yaml arg-2 if {_status} is 1
+				else:
+					errorText(player, "&cThat clan does not exist!")
+			else:
+				errorText(player, "&cYou must specify a clan to lookup!")
+			stop
+
+#     ▽ /clan join <clan name> ▽
+
+		if arg-1 is "join":
+			if arg-2 is set:
+				if {inClan::%player's uuid%} is not set:
+					if yaml file "%{filepath}%%arg-2%.yml" exists:
+						loadClan(arg-2)
+						if yaml value "clanSettingPublic" from {inClan::%player's uuid%} is true:
+							if size of yaml list "allMembers" from arg-2 < yaml value "clanUpgradeMaxMembers" from arg-2:
+								joinClan(player, arg-2)
+							else:
+								errorText(player, "&cThis clan is currently full!")
+						else:
+							if yaml list "currentInvites" from arg-2 contains player's uuid:
+								joinClan(player, arg-2)
+								delete {pendingInvite::%player's uuid%}
+								remove player's uuid from yaml list "currentInvites" from arg-2
+							else:
+								errorText(player, "&cThat clan is not public!")
+					else:
+						errorText(player, "&cThat clan does not exist!")
+				else:
+					errorText(player, "&cYou are already in a clan!")
+			else:
+				errorText(player, "&cSpecify a clan to join!")
+			stop
+
+#     ▽ /clan reject <clan name> ▽
+
+		if arg-1 is "reject":
+			if {inClan::%player's uuid%} is not set:
+				if arg-2 is set:
+					if yaml file "%{filepath}%%arg-2%.yml" exists:
+						loadClan(arg-2)
+						if yaml list "currentInvites" from arg-2 contains player's uuid:
+							remove player's uuid from yaml list "currentInvites" from arg-2
+							save yaml {pendingInvites::%player's uuid%}
+							delete {pendingInvites::%player's uuid%}
+							normalText(player, "&7You have &crejected&7 a clan invite from %yaml value "clanSettingColor" from arg-2%%arg-2%&7!")
+							clanText(yaml value "Owner" from arg-2 parsed as offline player, "&a%player%&7 has &crejected&7 your clan invite!")
+						else:
+							errorText(player, "&cThat clan has not sent you an invite!")
+					else:
+						errorText(player, "&cThat clan does not exist!")
+				else:
+					errorText(player, "&cSpecify a clan to reject!")
+			else:
+				errorText(player, "&cYou cannot use this command whilst being in a clan!")
+			stop
+
+#     ▽ /clan lastactive <clan name> ▽
+
+		if arg-1 is "lastactive":
+			if player is op:
+				if arg-2 is set:
+					if yaml file "%{filepath}%%arg-2%.yml" exists:
+						loadClan(arg-2)
+						send "%yaml value "clanSettingColor" from arg-2%→ %arg-2%&7 was last active %yaml value "clanSettingColor" from arg-2%%difference between now and yaml value "lastOnline" of arg-2%&7 ago."
+					else:
+						errorText(player, "&cA clan by the name &4%arg-2%&c does not exist!")
+				else:
+					errorText(player, "&cSpecify a clan to lookup!")
+			else:
+				errorText(player, "&cOnly operators can execute this command!")
+
+
+#     ▽ Commands only usable while in a clan ▽
+
+
+		if {inClan::%player's uuid%} is set:
+
+#     ▽ /clan transfer <clanAdmin> ▽
+
+			if arg-1 is "transfer":
+				loadClan({inClan::%player's uuid%})
+				if yaml value "Owner" from {inClan::%player's uuid%} is player's uuid:
+					if arg-2 is set:
+						if yaml value "Owner" from {inClan::%player's uuid%} is not arg-2 parsed as offline player's uuid:
+							if isClanMember(player, arg-2 parsed as offline player) is true:
+								if metadata tag "clanDisbandCooldown" of player is not set:
+									set yaml value "Owner" from {inClan::%player's uuid%} to arg-2 parsed as offline player's uuid
+									clanText(player, "&7The ownership of your clan has been transferred to &b%arg-2 parsed as offline player%&7!")
+									save yaml {inClan::%player's uuid%}
+								else:
+									errorText(player, "&cPlease wait 5 minutes before transferring ownership in a new clan to another member!")
+							else:
+								errorText(player, "&4%arg-2 parsed as offline player%&c is not in your clan!")
+						else:
+							errorText(player, "&cYou cannot transfer the ownership of your clan to yourself!")
+					else:
+						errorText(player, "&cSpecify a member to transfer your clan to!")
+				else:
+					errorText(player, "&cOnly your clan leader can transfer ownership of your clan!")
+
+#     ▽ /clan leave ▽
+
+			if arg-1 is "leave":
+				loadClan({inClan::%player's uuid%})
+				leaveClan(player)
+
+#     ▽ /clan ban <player> ▽
+
+			if arg-1 is "ban":
+				loadClan({inClan::%player's uuid%})
+				set {_owner} to yaml value "Owner" from "%{inClan::%player's uuid%}%"
+				set {_admins::*} to yaml list "Admins" from "%{inClan::%player's uuid%}%"
+				if {_owner} or {_admins::*} contains player's uuid:
+					if arg-2 is set:
+						arg-2 parsed as offline player.hasPlayedBefore():
+							set {_arg2} to arg-2 parsed as offline player
+							if {_admins::*} or {_owner} does not contain {_arg2}'s uuid:
+								if yaml list "Banlist" from {inClan::%player's uuid%} does not contain {_arg2}'s uuid:
+									clanBan(player, {_arg2})
+								else:
+									errorText(player, "&4%arg-2 parsed as offline player%&c is already banned from your clan!")
+							else:
+								errorText(player, "&cYou cannot ban &4%arg-2 parsed as offline player%&c because they are a clan admin!")
+						else:
+							if arg-2 parsed as player is online:
+								clanBan(player, arg-2 parsed as offline player)
+								stop
+							errorText(player, "&cThat player has never joined this server!")
+					else:
+						errorText(player, "&cSpecify a player to ban!")
+				else:
+					errorText(player, "&cOnly your clan leader and clan admins can ban clan members!")
+
+#     ▽ /clan chat ▽
+
+			if arg-1 is "chat":
+				if metadata tag "isUsingClanChat" of player is not set:
+					set metadata tag "isUsingClanChat" of player to 1
+					normalText(player, "&7You have &aenabled&7 clan chat.")
+				else:
+					delete metadata tag "isUsingClanChat" of player
+					normalText(player, "&7You have &cdisabled&7 clan chat.")
+
+#     ▽ /clan unban <player> ▽
+
+			if arg-1 is "unban":
+				loadClan({inClan::%player's uuid%})
+				set {_owner} to yaml value "Owner" from "%{inClan::%player's uuid%}%"
+				set {_admins::*} to yaml list "Admins" from "%{inClan::%player's uuid%}%"
+				set {_banlist::*} to yaml list "Banlist" from "%{inClan::%player's uuid%}%"
+				if {_owner} or {_admins::*} contains player's uuid:
+					if arg-2 is set:
+						set {_arg2} to arg-2 parsed as offline player
+						if {_banlist::*} contains {_arg2}'s uuid:
+							remove {_arg2}'s uuid from yaml list "Banlist" from "%{inClan::%player's uuid%}%"
+							clanText(player, "&a%{_arg2}% &7has been &aunbanned&7 from your clan.")
+							save yaml {inClan::%player's uuid%}
+						else:
+							errorText(player, "&4%arg-2% &cis not banned from your clan!")
+					else:
+						errorText(player, "&cSpecify a player to unban!")
+				else:
+					errorText(player, "&cOnly your clan leader and clan admins can unban banned players!")
+
+#     ▽ /clan kick <player> ▽
+
+			if arg-1 is "kick":
+				loadClan({inClan::%player's uuid%})
+				set {_owner} to yaml value "Owner" from {inClan::%player's uuid%}
+				set {_admins::*} to yaml list "Admins" from {inClan::%player's uuid%}
+				if {_owner} or {_admins::*} contains player's uuid:
+					if arg-2 is set:
+						set {_arg2} to arg-2 parsed as offline player
+						if isClanMember(player, {_arg2}) is true:
+							if {_owner} or {_admins::*} does not contain {_arg2}'s uuid:
+								clanKick({_arg2})
+							else:
+								errorText(player, "&cYou cannot kick &4%{_arg2}%&c because they are a clan admin!")
+						else:
+							errorText(player, "&4%{_arg2}% &cis not in your clan!")
+					else:
+						errorText(player, "&cSpecify a clan member to kick!")
+				else:
+					errorText(player, "&cOnly your clan leader and clan admins can kick clan members!")
+
+#     ▽ /clan promote <player> ▽
+
+			if arg-1 is "promote":
+				loadClan({inClan::%player's uuid%})
+				set {_owner} to yaml value "Owner" from "%{inClan::%player's uuid%}%"
+				set {_admins::*} to yaml list "Admins" from "%{inClan::%player's uuid%}%"
+				if {_owner} is player's uuid:
+					if arg-2 is set:
+						set {_arg2} to arg-2 parsed as offline player
+						if isClanMember(player, {_arg2}) is true:
+							if {_owner} or {_admins::*} does not contain {_arg2}'s uuid:
+								add {_arg2}'s uuid to yaml list "Admins" from {inClan::%player's uuid%}
+								remove {_arg2}'s uuid from {_members::*}
+								set yaml list "Members" from {inClan::%player's uuid%} to {_members::*}
+								clanText(player, "&a%{_arg2}%&7 has been &apromoted &7to a clan admin by &b%player%&7!")
+							else:
+								errorText(player, "&4%arg-2 parsed as offline player% &cis already an admin!")
+						else:
+							errorText(player, "&4%arg-2 parsed as offline player% &cis not in your clan!")
+					else:
+						errorText(player, "&cSpecify a clan member to promote!")
+				else:
+					errorText(player, "&cOnly your clan leader can promote clan members!")
+
+#     ▽ /clan demote <player> ▽
+
+			if arg-1 is "demote":
+				loadClan({inClan::%player's uuid%})
+				set {_owner} to yaml value "Owner" from "%{inClan::%player's uuid%}%"
+				set {_admins::*} to yaml list "Admins" from "%{inClan::%player's uuid%}%"
+				if {_owner} is player's uuid:
+					if arg-2 is set:
+						set {_arg2} to arg-2 parsed as offline player
+						if isClanMember(player, {_arg2}) is true:
+							if {_admins::*} contains {_arg2}'s uuid:
+								clanDemote({_arg2}, player)
+							else:
+								if {_owner} does not contain {_arg2}'s uuid:
+									errorText(player, "&4%arg-2 parsed as offline player% &cis already a member!")
+								else:
+									errorText(player, "&cYou cannot demote yourself!")
+						else:
+							errorText(player, "&4%arg-2 parsed as offline player% &cis not in your clan!")
+					else:
+						errorText(player, "&cSpecify a clan member to demote!")
+				else:
+					errorText(player, "&cOnly your clan leader can demote clan admins!")
+
+#     ▽ /clan invite <player> ▽
+
+			if arg-1 is "invite":
+				loadClan({inClan::%player's uuid%})
+				set {_owner} to yaml value "Owner" from {inClan::%player's uuid%}
+				set {_admins::*} to yaml list "Admins" from {inClan::%player's uuid%}
+				if {_admins::*} or {_owner} contains player's uuid:
+					if arg-2 is set:
+						set {_arg2} to arg-2 parsed as player
+						if "%{_arg2}%" parsed as player is online:
+							if {inClan::%{_arg2}'s uuid%} is not set:
+								if {pendingInvites::%{_arg2}'s uuid%} is not set:
+									if size of yaml list "allMembers" from {inClan::%player's uuid%} < yaml value "clanUpgradeMaxMembers" from {inClan::%player's uuid%}:
+										set {pendingInvites::%{_arg2}'s uuid%} to {inClan::%player's uuid%}
+										add {_arg2}'s uuid to yaml list "currentInvites" from {inClan::%player's uuid%}
+										clanText(player, "&b%player%&7 has invited &a%{_arg2}%&7 to your clan!")
+										specialText({_arg2}, "&6&lCLAN INVITE%nl%%nl%&b%player%&e has invited you to join %yaml value "clanSettingColor" from {inClan::%player's uuid%}%%{inClan::%player's uuid%}%&e!%nl%%nl%<cmd:/clan join %{inClan::%player's uuid%}%><tooltip:&aClick here to accept the invite!>&a&lACCEPT<tooltip:><cmd:> &8| <cmd:/clan reject %{inClan::%player's uuid%}%><tooltip:&cClick here to reject the invite!>&c&lREJECT<tooltip:><cmd:>%nl%&7&o(invite will expire in 60 seconds!)")
+										set {_n} to 61
+										save yaml {inClan::%player's uuid%}
+										loop 60 times:
+											wait 1 second
+											remove 1 from {_n}
+											if yaml list "currentInvites" from {inClan::%player's uuid%} contains {_arg2}'s uuid:
+												{_n} is 1
+												errorText({_arg2}, "&cClan invite from &r%yaml value "clanSettingColor" from {inClan::%player's uuid%}%%{inClan::%player's uuid%}%&c has expired!")
+												delete {pendingInvites::%{_arg2}'s uuid%}
+												remove {_arg2}'s uuid from yaml list "currentInvites" from {inClan::%player's uuid%}
+												save yaml {inClan::%player's uuid%}
+											else:
+												delete {pendingInvites::%{_arg2}'s uuid%}
+												remove {_arg2}'s uuid from yaml list "currentInvites" from {inClan::%player's uuid%}
+												save yaml {inClan::%player's uuid%}
+												stop loop
+									else:
+										errorText(player, "&cYour clan is currently full! You cannot send%nl%&cany more invites!")
+								else:
+									errorText(player, "&4%{_arg2}% &chas a pending invite from %yaml value "clanSettingColor" from {inClan::%player's uuid%}%%{pendingInvites::%{_arg2}'s uuid%}%&c! Wait for them to reject it to invite them!")
+							else:
+								errorText(player, "&4%{_arg2}% &cis already in the clan %yaml value "clanSettingColor" from {inClan::%{_arg2}'s uuid%}%%{inClan::%{_arg2}'s uuid%}%&c!")
+						else:
+							errorText(player, "&cYou cannot invite offline players to your clan!")
+					else:
+						errorText(player, "&cSpecify a player to invite to your clan!")
+				else:
+					errorText(player, "&cOnly your clan leader and clan admins can invite players to your clan!")
+
+#     ▽ /clan clan disband <confirm/cancel> ▽
+
+			if arg-1 is "disband":
+				loadClan({inClan::%player's uuid%})
+				if yaml value "Owner" from {inClan::%player's uuid%} contains player's uuid:
+					if metadata tag "isDisbanding" of player is not set:
+						if metadata tag "clanDisbandCooldown" of player is not set:
+							set metadata tag "isDisbanding" of player to 1
+							specialText(player, "&eAre you sure you want to disband your current clan?%nl%&eDisbanding your clan means that all your clan members%nl%will no longer be in your clan and will have to join a new one!%nl%%nl%&6&lAre you sure you want to do this? &a&l<cmd:/clan disband confirm><tooltip:&aClick here to disband!>YES <tooltip:>&8| <cmd:/clan disband cancel><tooltip:&cClick here to cancel!>&c&lNO%nl%&7&o(this will expire in 25 seconds!)")
+							wait 25 seconds
+							if metadata tag "isDisbanding" of player is set:
+								delete metadata tag "isDisbanding" of player
+								errorText(player, "&cYou took too long to select a disband option!")
+						else:
+							errorText(player, "&cPlease wait 5 minutes before disbanding a new clan!")
+					else:
+						if arg-2 is "confirm":
+							clanText(player, "&eYour clan has been disbanded!")
+							play sound "entity.wither.hurt" with pitch 2 for player
+							disbandClan(player, {inClan::%player's uuid%})
+							delete metadata tag "isDisbanding" of player
+						if arg-2 is "cancel":
+							specialText(player, "&eDisbanding canceled!")
+							delete metadata tag "isDisbanding" of player
+						if arg-2 is not set:
+							errorText(player, "&cPlease select either yes or no from the box above!%nl%You can also use /clan disband confirm or /clan disband cancel")
+				else:
+					errorText(player, "&cOnly your clan leader can disband your clan!")
+
+#     ▽ /clan setwarp <warp name> ▽
+
+			if arg-1 is "setwarp":
+				loadClan({inClan::%player's uuid%})
+				if yaml value "Owner" from {inClan::%player's uuid%} or yaml list "Admins" from {inClan::%player's uuid%} contains player's uuid:
+					if size of yaml list "Warps" from {inClan::%player's uuid%} < 3:
+						if arg-2 is set:
+							if length of arg-2 <= 10:
+								if arg-2 matches "[a-zA-Z]+":
+									if yaml list "Warps" from {inClan::%player's uuid%} does not contain uncolored arg-2:
+										add uncolored arg-2 to yaml list "Warps" from {inClan::%player's uuid%}
+										set yaml value "%arg-2%WarpLocation" from {inClan::%player's uuid%} to location of player
+										clanText(player, "&b%player%&7 set a warp named &6""&a%uncolored arg-2%&6""&7.")
+										play sound "block.note_block.pling" with pitch 2 for player
+										save yaml {inClan::%player's uuid%}
+									else:
+										errorText(player, "&cA warp by the name &4%uncolored arg-2%&c already exists!")
+								else:
+									errorText(player, "&cThe name of your warp must be alphabetic!")
+							else:
+								errorText(player, "&cThe length of your warp name must be less than 10 characters!")
+						else:
+							errorText(player, "&cSpecify a name for the warp!")
+					else:
+						errorText(player, "&cYour clan has the maximum amount of warps set! Remove some to add more!")
+				else:
+					errorText(player, "&cOnly your clan leader and clan admins can set warps!")
+
+#     ▽ /clan warp <warp name> ▽
+
+			if arg-1 is "warp":
+				if arg-2 is set:
+					if metadata tag "isWarping" of player is not set:
+						loadClan({inClan::%player's uuid%})
+						if yaml list "Warps" from {inClan::%player's uuid%} contains uncolored arg-2:
+							set metadata tag "isWarping" of player to 1
+							set {_loc} to location at player's x-coordinate, player's y-coordinate, player's z-coordinate
+							loop (yaml value "Warp time" from "bClansConfig") * 20 times:
+								if {_loc} is location at player's x-coordinate, player's y-coordinate, player's z-coordinate:
+									make 10 of dust using dustOption(magenta, 0.5) at location 1 above player with offset vector(0.3, 0.4, 0.3) with extra 0
+									send action bar "&bWarping to %uncolored arg-2% &8| &a%abs(floor(loop-number / 20) - (yaml value "Warp time" from "bClansConfig"))%" to player
+									wait 1 tick
+								else:
+									send action bar "&bWarping to %uncolored arg-2% &8| &cMoved!" to player
+									delete metadata tag "isWarping" of player
+									stop
+							teleport player to yaml value "%arg-2%WarpLocation" from {inClan::%player's uuid%}
+							send action bar "&bWarping to %uncolored arg-2% &8| &aTeleported!" to player
+							normalText(player, "&7Teleported to the warp &a%uncolored arg-2%&7!")
+							play sound "entity.enderman.teleport" with pitch 2 for player
+							delete metadata tag "isWarping" of player
+							save yaml {inClan::%player's uuid%}
+						else:
+							errorText(player, "&cA warp by the name &4%uncolored arg-2%&c does not exist!")
+					else:
+						errorText(player, "&cYou are currently warping!")
+				else:
+					errorText(player, "&cSpecify a warp to teleport to!")
+
+#     ▽ /clan delwarp <warp name> ▽
+
+			if arg-1 is "delwarp":
+				loadClan({inClan::%player's uuid%})
+				if yaml value "Owner" from {inClan::%player's uuid%} or yaml list "Admins" from {inClan::%player's uuid%} contains player's uuid:
+					if arg-2 is set:
+						if yaml list "Warps" from {inClan::%player's uuid%} contains uncolored arg-2:
+							remove uncolored arg-2 from yaml list "Warps" from {inClan::%player's uuid%}
+							delete yaml value "%arg-2%WarpLocation" from {inClan::%player's uuid%}
+							clanText(player, "&b%player%&7 deleted the warp &6""&a%uncolored arg-2%&6""&7.")
+							play sound "entity.skeleton.death" with pitch 2 for player
+							save yaml {inClan::%player's uuid%}
+						else:
+							errorText(player, "&cA warp by the name &4%uncolored arg-2%&c does not exist!")
+					else:
+						errorText(player, "&cSpecify a warp to delete!")
+				else:
+					errorText(player, "&cOnly your clan leader and clan admins can delete warps!")
+
+#     ▽ /clan box ▽
+
+			if arg-1 is "box":
+				loadClan({inClan::%player's uuid%})
+				if yaml value "Kills" from {inClan::%player's uuid%} >= 100:
+					if ("boxworld" parsed as world) is set:
+						if yaml value "boxLoc" from {inClan::%player's uuid%} is "Not set":
+							add 100 to x-coordinate of {boxgenloc}
+							set yaml value "boxLoc" from {inClan::%player's uuid%} to {boxgenloc}
+							genBox(player, {boxgenloc}, yaml value "clanUpgradeBoxSize" from {inClan::%player's uuid%})
+							normalText(player, "&7Generating your clan box..")
+							wait 2 seconds
+							normalText(player, "&7You have been &asuccessfully&7 teleported to your clan box!")
+							play sound "block.note_block.pling" with pitch 2 for player
+							teleport player to yaml value "boxLoc" from {inClan::%player's uuid%}
+						else:
+							if block at yaml value "boxLoc" from {inClan::%player's uuid%} is air:
+								teleport player to yaml value "boxLoc" from {inClan::%player's uuid%}
+								normalText(player, "&7You have been &asuccessfully&7 teleported to your clan box!")
+								wait 1 tick
+								play sound "block.note_block.pling" with pitch 2 for player
+							else:
+								teleport player to location 1 above yaml value "boxLoc" from {inClan::%player's uuid%}
+								normalText(player, "&7You have been &asuccessfully&7 teleported to your clan box!")
+								wait 1 tick
+								play sound "block.note_block.pling" with pitch 2 for player
+					else if {generatingWorld} is not set:
+						set {generatingWorld} to 1
+						execute console command "/mv create boxworld NORMAL -g VoidGen -t FLAT"
+						specialText(player, "&eGenerating box world..")
+						wait 3 seconds
+						set the gamerule keepInventory of world "boxworld" to true
+						set the gamerule fallDamage of world "boxworld" to false
+						set the gamerule doDaylightCycle of world "boxworld" to false
+						set the gamerule doImmediateRespawn of world "boxworld" to true
+						set the gamerule randomTickSpeed of world "boxworld" to 0
+						set the gamerule doMobSpawning of world "boxworld" to false
+						set {boxgenloc} to location(0, 50, 0, "boxworld")
+						specialText(player, "&eClan box world generated! Please use the /clan box command again!")
+						delete {generatingWorld}
+					else:
+						errorText(player, "&cThe box world is currently generating! Please try again.")
+				else:
+					errorText(player, "&cYour clan does not have enough clan kills to create a box!%nl%&7&o(You need %difference between (0 + yaml value "Kills" from {inClan::%player's uuid%}) and 100% more!)")
+				save yaml {inClan::%player's uuid%}
+
+#     ▽ /clan vault <deposit, withdraw> <number> ▽
+
+			if arg-1 is "vault":
+				loadClan({inClan::%player's uuid%})
+				if arg-2 and arg-3 is set:
+					if arg-2 is "deposit":
+						if arg-3 parsed as a number is set:
+							if {balance::%player's uuid%} >= arg-3 parsed as a number:
+								if (yaml value "clanBalance" from {inClan::%player's uuid%} + arg-3 parsed as a number) <= yaml value "clanUpgradeMaxBalance" from {inClan::%player's uuid%}:
+									subtract arg-3 parsed as a number from {balance::%player's uuid%}
+									set {_n} to yaml value "clanBalance" from {inClan::%player's uuid%}
+									add arg-3 parsed as a number to {_n}
+									set yaml value "clanBalance" from {inClan::%player's uuid%} to {_n}
+									normalText(player, "&7You have deposited &6%formatNumber(arg-3)%₲&7 into your clans vault.")
+								else:
+									set {_n} to difference between (yaml value "clanUpgradeMaxBalance" from {inClan::%player's uuid%}) and (yaml value "clanBalance" from {inClan::%player's uuid%})
+									normalText(player, "&7You have deposited &6%formatNumber({_n})%₲&7 into your clans vault.")
+									subtract {_n} from {balance::%player's uuid%}
+									set yaml value "clanBalance" from {inClan::%player's uuid%} to yaml value "clanUpgradeMaxBalance" from {inClan::%player's uuid%}
+
+									
+							else:
+								errorText(player, "&cYou do not have enough gold to deposit &6%formatNumber(arg-3)%₲&c!")
+						else:
+							errorText(player, "&cPlease enter a numerical amount to deposit!")
+					if arg-2 is "withdraw":
+						if yaml value "Owner" from {inClan::%player's uuid%} or yaml list "Admins" from {inClan::%player's uuid%} contains player's uuid:
+							if arg-3 parsed as a number is set:
+								if yaml value "clanBalance" from {inClan::%player's uuid%} >= arg-3 parsed as a number:
+									set {_n} to yaml value "clanBalance" from {inClan::%player's uuid%}
+									subtract arg-3 parsed as a number from {_n}
+									set yaml value "clanBalance" from {inClan::%player's uuid%} to {_n}
+									normalText(player, "&7You have withdrawn &6%formatNumber(arg-3)%₲&7 from your clans vault.")
+								else:
+									set {_n} to yaml value "clanBalance" from {inClan::%player's uuid%}
+									if {_n} is not 0:
+										normalText(player, "&7You have withdrawn &6%formatNumber({_n})%₲&7 from your clans vault.")
+										add {_n} to {balance::%player's uuid%}
+										set yaml value "clanBalance" from {inClan::%player's uuid%} to 0
+									else:
+										errorText(player, "&cYour clans vault does not contain any gold!")
+							else:
+								errorText(player, "&cPlease enter a numerical amount to withdraw!")
+						else:
+							errorText(player, "&cOnly your clan leader and clan admins can withdraw money from your clans vault!")
+				else:
+					specialText(player, "&eYour clans vault currently contains &6%formatNumber(yaml value "clanBalance" from {inClan::%player's uuid%})%₲&e.")
+
+#     ▽ /clan upgrade <boxSize, maxMembers, vault> ▽
+
+			if arg-1 is "upgrade":
+				loadClan({inClan::%player's uuid%})
+				if yaml value "Owner" from {inClan::%player's uuid%} or yaml list "Admins" from {inClan::%player's uuid%} contains player's uuid:
+					if arg-2 is set:
+						if arg-2 is "boxSize":
+							if yaml value "boxLoc" from {inClan::%player's uuid%} is not "Not set":
+								if yaml value "clanBalance" from {inClan::%player's uuid%} >= (yaml value "clanUpgradeBoxSize" from {inClan::%player's uuid%} * 2000):
+									if yaml value "clanUpgradeBoxSize" from {inClan::%player's uuid%} < yaml value "maxBoxSize" from "bClansConfig":
+										play sound "block.note_block.pling" with pitch 2 for player
+										set {_n} to yaml value "clanUpgradeBoxSize" from {inClan::%player's uuid%}
+										set {_bal} to yaml value "clanBalance" from {inClan::%player's uuid%}
+										subtract {_n} * 2000 from {_bal}
+										set yaml value "clanBalance" from {inClan::%player's uuid%} to {_bal}
+										add 1 to {_n}
+										set yaml value "clanUpgradeBoxSize" from {inClan::%player's uuid%} to {_n}
+										save yaml {inClan::%player's uuid%}
+										genBoxUpgrade(player, yaml value "boxLoc" from {inClan::%player's uuid%}, yaml value "clanUpgradeBoxSize" from {inClan::%player's uuid%})
+										clanText(player, "&7Your clan box has been upgraded to &a%{_n} * 2%x%{_n} * 2%x&7!")
+									else:
+										errorText(player, "&cYou already have the largest box!")
+								else:
+									errorText(player, "&cYour clan needs &6%formatNumber(yaml value "clanUpgradeBoxSize" from {inClan::%player's uuid%} * 2000)%₲&c to upgrade your box size!")
+							else:
+								errorText(player, "&cYour clan does not have a box!")
+						if arg-2 is "maxMembers":
+							if yaml value "clanBalance" from {inClan::%player's uuid%} >= (yaml value "clanUpgradeMaxMembers" from {inClan::%player's uuid%} * 250):
+								if yaml value "clanUpgradeMaxMembers" from {inClan::%player's uuid%} < yaml value "Maximum Clan Size" from "bClansConfig":
+									set {_n} to yaml value "clanUpgradeMaxMembers" from {inClan::%player's uuid%}
+									play sound "block.note_block.pling" with pitch 2 for player
+									set {_bal} to yaml value "clanBalance" from {inClan::%player's uuid%}
+									subtract {_n} * 250 from {_bal}
+									set yaml value "clanBalance" from {inClan::%player's uuid%} to {_bal}
+									add 2 to {_n}
+									set yaml value "clanUpgradeMaxMembers" from {inClan::%player's uuid%} to {_n}
+									save yaml {inClan::%player's uuid%}
+									clanText(player, "&7The maximum amount of members allowed in your clan has been upgraded to &a%{_n}%&7!")
+								else:
+									errorText(player, "&cYou already have the maximum clan size!")
+							else:
+								errorText(player, "&cYour clan needs &6%formatNumber(yaml value "clanUpgradeMaxMembers" from {inClan::%player's uuid%} * 250)%₲&c to upgrade your maximum members!")
+						if arg-2 is "vault":
+							if yaml value "clanBalance" from {inClan::%player's uuid%} >= round(yaml value "clanUpgradeMaxBalance" from {inClan::%player's uuid%} / 2):
+								if yaml value "clanUpgradeMaxBalance" from {inClan::%player's uuid%} <= yaml value "Maximum Vault Balance" from "bClansConfig":
+									set {_n} to yaml value "clanUpgradeMaxBalance" from {inClan::%player's uuid%}
+									add yaml value "Max Vault Gold Per Upgrade" from "bClansConfig" to {_n}
+									play sound "block.note_block.pling" with pitch 2 for player
+									set yaml value "clanUpgradeMaxBalance" from {inClan::%player's uuid%} to {_n}
+									set {_n} to yaml value "clanBalance" from {inClan::%player's uuid%}
+									subtract round(yaml value "clanUpgradeMaxBalance" from {inClan::%player's uuid%} / 2) from {_n}
+									set yaml value "clanBalance" from {inClan::%player's uuid%} to {_n}
+									save yaml {inClan::%player's uuid%}
+									clanText(player, "&7Your clans vault capacity has been upgraded to &a%formatNumber(round(yaml value "clanUpgradeMaxBalance" from {inClan::%player's uuid%}) )%&7!")
+								else:
+									errorText(player, "&cYour clans vault is already at its maximum capacity!")
+							else:
+								errorText(player, "&cYour clan needs &6%formatNumber(round(yaml value "clanUpgradeMaxBalance" from {inClan::%player's uuid%} / 2))%₲&c to upgrade your vault capacity!")
+					else:
+						errorText(player, "&cSpecify a clan upgrade!")
+				else:
+					errorText(player, "&cOnly your clan leader and clan admins can upgrade your clan!")
+
+#     ▽ /clan setting <public, friendlyFire, motd, color> ▽
+
+			if arg-1 is "setting":
+				loadClan({inClan::%player's uuid%})
+				if yaml value "Owner" from {inClan::%player's uuid%} or yaml list "Admins" from {inClan::%player's uuid%} contains player's uuid:
+					if arg-2 is set:
+						if arg-2 is "public":
+							if arg-3 is not set:
+								if yaml value "clanSettingPublic" from {inClan::%player's uuid%} is true:
+									normalText(player, "&7Your clan is currently &apublic&7.")
+								else:
+									normalText(player, "&7Your clan is currently &cprivate&7.")
+							else if arg-3 is set:
+								if arg-3 is "true":
+									if yaml value "clanSettingPublic" from {inClan::%player's uuid%} is false:
+										set yaml value "clanSettingPublic" from {inClan::%player's uuid%} to true
+										save yaml {inClan::%player's uuid%}
+										clanText(player, "&7Your clan is now &apublic&7.")
+										add {inClan::%player's uuid%} to {allPublicClans::*}
+									else:
+										errorText(player, "&cYour clan is already public!")
+								if arg-3 is "false":
+									if yaml value "clanSettingPublic" from {inClan::%player's uuid%} is true:
+										set yaml value "clanSettingPublic" from {inClan::%player's uuid%} to false
+										save yaml {inClan::%player's uuid%}
+										clanText(player, "&7Your clan is now &cprivate&7.")
+										remove {inClan::%player's uuid%} from {allPublicClans::*}
+									else:
+										errorText(player, "&cYour clan is already private!")
+						if arg-2 is "friendlyFire":
+							if arg-3 is not set:
+								if yaml value "clanSettingFriendlyFire" from {inClan::%player's uuid%} is false:
+									normalText(player, "&7Friendly fire is currently &cdisabled&7.")
+								else:
+									normalText(player, "&7Friendly fire is currently &aenabled&7.")
+							else if arg-3 is set:
+								if arg-3 is "true":
+									if yaml value "clanSettingFriendlyFire" from {inClan::%player's uuid%} is false:
+										clanText(player, "&7Friendly fire is now &aenabled&7.")
+										set yaml value "clanSettingFriendlyFire" from {inClan::%player's uuid%} to true
+										save yaml {inClan::%player's uuid%}
+									else:
+										errorText(player, "&cFriendly fire is already enabled!")
+								if arg-3 is "false":
+									if yaml value "clanSettingFriendlyFire" from {inClan::%player's uuid%} is true:
+										clanText(player, "&7Friendly fire is now &cdisabled&7.")
+										set yaml value "clanSettingFriendlyFire" from {inClan::%player's uuid%} to false
+										save yaml {inClan::%player's uuid%}
+									else:
+										errorText(player, "&cFriendly fire is already disabled!")
+						if arg-2 is "motd":
+							if arg-3 is set:
+								if yaml value "Owner" from {inClan::%player's uuid%} or yaml list "Admins" from {inClan::%player's uuid%} contains player's uuid:
+									if length of arg-3 < 50:
+										set yaml value "clanSettingMOTD" from {inClan::%player's uuid%} to uncolored arg-3
+										clanText(player, "&7Your clans MOTD has been set to &6""&r%yaml value "clanSettingColor" from {inClan::%player's uuid%}%%yaml value "clanSettingMOTD" from {inClan::%player's uuid%}%&6""&7!")
+										save yaml {inClan::%player's uuid%}
+									else:
+										errorText(player, "&cThe length of your clans MOTD must be below 50 characters!")
+								else:
+									errorText(player, "&cOnly your clan leader and clan admins can use this command!")
+							else:
+								errorText(player, "&cSpecify an MOTD for your clan!")
+						if arg-2 is "color":
+							if arg-3 is "black":
+								if yaml value "Kills" from {inClan::%player's uuid%} >= 300:
+									set yaml value "clanSettingColor" from {inClan::%player's uuid%} to "&0"
+									normalText(player, "&7Set your clan color to &0black&7.")
+								else:
+									errorText(player, "&cYou do not have enough clan kills for this clan color!%nl%&7&oYou need %difference between (0 + yaml value "Kills" from {inClan::%player's uuid%}) and 300% more!")
+							if arg-3 is "purple":
+								if yaml value "Kills" from {inClan::%player's uuid%} >= 275:
+									set yaml value "clanSettingColor" from {inClan::%player's uuid%} to "&5"
+									normalText(player, "&7Set your clan color to &5purple&7.")
+								else:
+									errorText(player, "&cYou do not have enough clan kills for this clan color!%nl%&7&oYou need %difference between (0 + yaml value "Kills" from {inClan::%player's uuid%}) and 250% more!")
+							if arg-3 is "magenta":
+								if yaml value "Kills" from {inClan::%player's uuid%} >= 250:
+									set yaml value "clanSettingColor" from {inClan::%player's uuid%} to "&d"
+									normalText(player, "&7Set your clan color to &dmagenta&7.")
+								else:
+									errorText(player, "&cYou do not have enough clan kills for this clan color!%nl%&7&oYou need %difference between (0 + yaml value "Kills" from {inClan::%player's uuid%}) and 250% more!")
+							if arg-3 is "blue":
+								if yaml value "Kills" from {inClan::%player's uuid%} >= 225:
+									set yaml value "clanSettingColor" from {inClan::%player's uuid%} to "&9"
+									normalText(player, "&7Set your clan color to &9blue&7.")
+								else:
+									errorText(player, "&cYou do not have enough clan kills for this clan color!%nl%&7&oYou need %difference between (0 + yaml value "Kills" from {inClan::%player's uuid%}) and 225% more!")
+							if arg-3 is "aqua":
+								if yaml value "Kills" from {inClan::%player's uuid%} >= 200:
+									set yaml value "clanSettingColor" from {inClan::%player's uuid%} to "&3"
+									normalText(player, "&7Set your clan color to &3aqua&7.")
+								else:
+									errorText(player, "&cYou do not have enough clan kills for this clan color!%nl%&7&oYou need %difference between (0 + yaml value "Kills" from {inClan::%player's uuid%}) and 200% more!")
+							if arg-3 is "lightblue":
+								if yaml value "Kills" from {inClan::%player's uuid%} >= 175:
+									set yaml value "clanSettingColor" from {inClan::%player's uuid%} to "&b"
+									normalText(player, "&7Set your clan color to &blight blue&7.")
+								else:
+									errorText(player, "&cYou do not have enough clan kills for this clan color!%nl%&7&oYou need %difference between (0 + yaml value "Kills" from {inClan::%player's uuid%}) and 175% more!")
+							if arg-3 is "green":
+								if yaml value "Kills" from {inClan::%player's uuid%} >= 150:
+									set yaml value "clanSettingColor" from {inClan::%player's uuid%} to "&2"
+									normalText(player, "&7Set your clan color to &2green&7.")
+								else:
+									errorText(player, "&cYou do not have enough clan kills for this clan color!%nl%&7&oYou need %difference between (0 + yaml value "Kills" from {inClan::%player's uuid%}) and 150% more!")
+							if arg-3 is "lime":
+								if yaml value "Kills" from {inClan::%player's uuid%} >= 125:
+									set yaml value "clanSettingColor" from {inClan::%player's uuid%} to "&a"
+									normalText(player, "&7Set your clan color to &alime&7.")
+								else:
+									errorText(player, "&cYou do not have enough clan kills for this clan color!%nl%&7&oYou need %difference between (0 + yaml value "Kills" from {inClan::%player's uuid%}) and 125% more!")
+							if arg-3 is "red":
+								if yaml value "Kills" from {inClan::%player's uuid%} >= 100:
+									set yaml value "clanSettingColor" from {inClan::%player's uuid%} to "&c"
+									normalText(player, "&7Set your clan color to &cred&7.")
+								else:
+									errorText(player, "&cYou do not have enough clan kills for this clan color!%nl%&7&oYou need %difference between (0 + yaml value "Kills" from {inClan::%player's uuid%}) and 100% more!")
+							if arg-3 is "gold":
+								if yaml value "Kills" from {inClan::%player's uuid%} >= 75:
+									set yaml value "clanSettingColor" from {inClan::%player's uuid%} to "&6"
+									normalText(player, "&7Set your clan color to &6gold&7.")
+								else:
+									errorText(player, "&cYou do not have enough clan kills for this clan color!%nl%&7&oYou need %difference between (0 + yaml value "Kills" from {inClan::%player's uuid%}) and 75% more!")
+							if arg-3 is "yellow":
+								if yaml value "Kills" from {inClan::%player's uuid%} >= 50:
+									set yaml value "clanSettingColor" from {inClan::%player's uuid%} to "&e"
+									normalText(player, "&7Set your clan color to &eyellow&7.")
+								else:
+									errorText(player, "&cYou do not have enough clan kills for this clan color!%nl%&7&oYou need %difference between (0 + yaml value "Kills" from {inClan::%player's uuid%}) and 50% more!")
+							if arg-3 is "white":
+								if yaml value "Kills" from {inClan::%player's uuid%} >= 25:
+									set yaml value "clanSettingColor" from {inClan::%player's uuid%} to "&f"
+									normalText(player, "&7Set your clan color to &fwhite&7.")
+								else:
+									errorText(player, "&cYou do not have enough clan kills for this clan color!%nl%&7&oYou need %difference between (0 + yaml value "Kills" from {inClan::%player's uuid%}) and 25% more!")
+							if arg-3 is "gray":
+								set yaml value "clanSettingColor" from {inClan::%player's uuid%} to "&7"
+								normalText(player, "&7Set your clan color to gray.")
+							if arg-3 is not set:
+								send "%nl%&6&lCLAN COLORS LIST%nl%&e300 Clan Kills &6→ &0Black clan color%nl%&e275 Clan Kills &6→ &5Purple clan color%nl%&e250 Clan Kills &6→ &dMagenta clan color%nl%&e225 Clan Kills &6→ &9Blue clan color%nl%&e200 Clan Kills &6→ &3Aqua clan color%nl%&e175 Clan Kills &6→ &bLight Blue clan color%nl%&e150 Clan Kills &6→ &2Green clan color%nl%&e125 Clan Kills &6→ &aLime clan color%nl%&e100 Clan Kills &6→ &cRed clan color%nl%&e75 Clan Kills &6→ &6Gold clan color%nl%&e50 Clan Kills &6→ &eYellow clan color%nl%&e25 Clan Kills &6→ &fWhite clan color%nl%&e0 Clan Kills &6→ &7Gray clan color"
+							save yaml {inClan::%player's uuid%}
+						else:
+							arg-2 is not "motd" or "friendlyFire" or "color" or "public"
+							errorText(player, "&cThis setting does not exist!")
+					else:
+						errorText(player, "&cSpecify a setting to change!")
+				else:
+					errorText(player, "&cOnly your clan leader and clan admins can change your clans settings!")
+			else:
+				if arg-1 is not "create" or "upgrade" or "lastactive" or "vault" or "transfer" or "disband" or "info" or "join" or "setting" or "promote" or "demote" or "invite" or "leave" or "kick" or "ban" or "box" or "unban" or "list" or "force-promote" or "force-disband" or "force-join" or "warp" or "setwarp" or "delwarp" or "help" or "reject" or "force-demote" or "chat":
+					errorText(player, "&cThat sub-command does not exist!%nl%&7&oUse /clan help to check sub-commands!")
+		else:
+			errorText(player, "&cCreate a clan to use these commands!")
+
+
+#     ▽ Clan chat command ▽
+
+
+command /cc [<text>]:
+	aliases: clanchat
+	cooldown message: &cYou are trying to use this command too fast! &7(Try again in %remaining time%)
+	cooldown: 1 second
+	trigger:
+		if {inClan::%player's uuid%} is set:
+			loadClan({inClan::%player's uuid%})
+			if arg-1 is set:
+				send "%yaml value "clanSettingColor" from {inClan::%player's uuid%}%&lCLANCHAT %yaml value "clanSettingColor" from {inClan::%player's uuid%}%%player% &8» &r%arg-1%" to all players where [{inClan::%player's uuid%} is {inClan::%input's uuid%}]
+			else:
+				if metadata tag "isUsingClanChat" of player is not set:
+					set metadata tag "isUsingClanChat" of player to 1
+					normalText(player, "&7You have &aenabled&7 clan chat.")
+				else:
+					delete metadata tag "isUsingClanChat" of player
+					normalText(player, "&7You have &cdisabled&7 clan chat.")
+		else:
+			errorText(player, "&cYou must be in a clan to use clan chat!")
+
+
+#     ▽ /purgeclans <time to be inactive for to purge (e.g "1 day")> ▽
+
+
+command /purgeclans [<timespan>]:
+	permission: op
+	trigger:
+		if arg-1 is set:
+			loop {allClans::*}:
+				set {_status} to 1 if yaml loop-value is not loaded
+				loadClan(loop-value)
+				add 1 to {_n}
+				difference between now and yaml value "lastOnline" of loop-value > arg-1
+				send action bar "&2Purging Progress &8| %ProgressBar({_n}, size of {allClans::*}, 10)%" to player
+				disbandClan(yaml value "Owner" of loop-value parsed as offline player, "%loop-value%")
+				add loop-value to {_purgedName::*}
+				unload yaml loop-value if {_status} is 1
+				delete {_status}
+				wait 1 tick
+			if size of {_purgedName::*} > 0:
+				specialText(player, "<tooltip:&aClans Purged: %{_purgedName::*}%>&aSuccessfully&e purged %formatNumber(size of {_purgedName::*})% clans that have been inactive for more than %arg-1%&7.")
+				stop
+			normalText(player, "&7There are no clans that have been inactive for more than %arg-1%&7.")
+		else:
+			errorText(player, "&cSpecify the amount of time a clan has to be offline for to purge!")

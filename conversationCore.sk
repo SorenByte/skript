@@ -1,0 +1,118 @@
+
+command /speak <string>:
+	usage: Correct usage: /speak
+	trigger:
+		stop if metadata tag "isSpeaking" of player is not set
+		delete metadata tag "isSpeaking" of player
+		set {_valid::*} to split metadata tag "validSpeakArgs" of player at "|"
+		set {_speaker} to metadata tag "speakingTo" of player parsed as an entity
+		delete metadata tag "speakingTo" of player
+		loop {_valid::*}:
+			arg-1 is loop-value
+			set {_heGood} to true
+		{_heGood} is true
+		speakInterface(arg-1, {_speaker}, player)
+
+command /setconversation <string>:
+	permission: op
+	trigger:
+		target entity of player is set
+		arg-1 is set
+		set {_npc} to target entity of player
+		metadata tag "NPC" of {_npc} is set
+		set {npcs::%{_npc}'s uuid%} to arg-1
+		send "&2&l! &7Set conversation tag for &a'%unformatted display name of {_npc}%&a' &7to &e%arg-1%&7." to player
+
+on right click on player:
+	metadata tag "NPC" of event-entity is set
+	set {_msg} to {npcs::%event-entity's uuid%}
+	{_msg} is set
+	speakInterface({_msg}, event-entity, player)
+
+function speak(speaker: entity, speakto: entity, saying: text, tone: string, options: strings = "null", speakerName: text = "nonamegiven", speaktoName: text = "nonamegiven"):
+	
+	#Check if the player is speaking to another NPC.
+	metadata tag "isSpeaking" of {_speakto} is not set
+	set metadata tag "isSpeaking" of {_speakto} to now
+	
+	#Checks for unset variables.
+	if {_speaker} or {_speakto} or {_saying} or {_tone} is not set:
+		send "&cAn invalid speak() function was just called with &e""speak(%{_speaker}%, %{_speakto}%, %{_saying}%, %{_tone}%, %{_options::*}%, %{_speakerName}%, %{_speaktoName}%)""" to console
+		stop
+
+	#Delete variables that aren't really set for default value usage.
+	if {_speakerName} is "nonamegiven":
+		delete {_speakerName}
+	if {_speakertoName} is "nonamegiven":
+		delete {_speakertoName}
+	if {_options::*} is "null":
+		delete {_options::*}
+	
+	#Preparing player's title to make sure theres no lingering titles.
+	reset title of {_speakto}
+	
+	#Getting tone options such as speaking sound and speaking color.
+	set {_toneOptions::*} to getToneOptions({_tone})
+	play sound {_toneOptions::1} with volume 1 with pitch 1 for {_speakto}
+	send "%nl%%{_toneOptions::2}%%{_toneOptions::3}% %{_speakerName} ? display name of {_speaker}% &8🠚 &f%{_saying}%" to {_speakto}
+	
+	#Getting speech options if there are any.
+	if {_options::*} is not set:
+		delete metadata tag "isSpeaking" of {_speakto}
+		stop
+	wait "%((length of {_saying})/2)% ticks" parsed as a timespan
+	loop {_options::*}:
+		set {_split::*} to split loop-value at "|"
+		set {_t::%loop-iteration%} to text component from "%nl%&8%loop-iteration%. %{_split::1}%"
+		add click event to run command "/speak %{_split::2}%" to {_t::%loop-iteration%}
+		set hover event of {_t::%loop-iteration%} to hover event showing "%{_split::1}%"
+		add {_split::2} to {_valid::*}
+	set metadata tag "validSpeakArgs" of {_speakto} to join {_valid::*} with "|"
+	set metadata tag "speakingTo" of {_speakto} to {_speaker}'s uuid
+	loop {_t::*}:
+		send component loop-value to {_speakto}
+		play sound "ui.button.click" with volume 100 with pitch 2 for {_speakto}
+		wait "%(length of loop-value)/10% ticks" parsed as a timespan if loop-iteration is not size of {_t::*}
+	send title "" with subtitle "%{_toneOptions::2}%%{_speakerName} ? display name of {_speaker}%&7 is awaiting your response." to {_speakto} for 1 minute with fadein 0.25 second
+
+#Function for easily getting options for tones.
+function getToneOptions(tone: string) :: strings:
+	if {_tone} is "angry":
+		set {_return::1} to "entity.villager.no"
+		set {_return::2} to "&c"
+		set {_return::3} to "😠"
+	else if {_tone} is "happy":
+		set {_return::1} to "entity.villager.celebrate"
+		set {_return::2} to "&a"
+		set {_return::3} to "😁"
+	else if {_tone} is "interest":
+		set {_return::1} to "entity.villager.trade"
+		set {_return::2} to "&e"
+		set {_return::3} to "🤨"
+	else if {_tone} is "hurt":
+		set {_return::1} to "entity.villager.hurt"
+		set {_return::2} to "&4"
+		set {_return::3} to "😢"
+	else:
+		set {_return::1} to "entity.villager.ambient"
+		set {_return::2} to "&7"
+		set {_return::3} to "🙂"
+		
+	return {_return::*}
+
+#Making sure player's don't just have the is speaking tag everywhere they go.
+every 1 second:
+	loop all players where [metadata tag "isSpeaking" of input is set]:
+		difference between metadata tag "isSpeaking" of loop-player and now > 3 seconds
+		set {_speaker} to metadata tag "speakingTo" of loop-player parsed as an entity
+		if difference between metadata tag "isSpeaking" of loop-player and now > 1 minute:
+			send "%nl%&7Your previous conversation has timed out.." to loop-player
+			set {_reset} to true
+		else if distance between loop-player and {_speaker} > 10:
+			send "%nl%&7You walked away from the conversation.." to loop-player
+			set {_reset} to true
+		{_reset} is true
+		delete metadata tag "isSpeaking" of loop-player
+		delete metadata tag "validSpeakArgs" of loop-player
+		delete metadata tag "speakingTo" of loop-player
+		reset title of loop-player

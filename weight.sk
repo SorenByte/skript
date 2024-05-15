@@ -1,0 +1,87 @@
+
+on join:
+	wait 5 ticks
+	yaml value "weight" from player's uuid is not set
+	set yaml value "weight" from player's uuid to 100
+
+every 2 ticks:
+	loop all players:
+		set {_w} to yaml value "weight" from loop-player's uuid
+		set {_c} to getWeightColor({_w})
+		replace all "|" in {_c} with ""
+		set {_plus} to "%metadata tag "addedWeight" of loop-player%" parsed as a number
+		set {_cond} to ""
+		set {_plus} to round({_plus}*10)/10
+		if {_plus} > 0:
+			set {_cond} to "&a+%{_plus}%lbs"
+		if {_plus} = 0:
+			set {_cond} to ""
+		else if {_plus} < 0:
+			set {_cond} to "&c-%abs({_plus})%lbs"
+		send action bar "%{_c}%%round({_w}*10)/10%lbs %{_cond}%" to loop-player
+		
+		if difference between metadata tag "addedWeightTime" of loop-player and now > 2.5 second:
+			delete metadata tag "addedWeight" of loop-player
+			delete metadata tag "addedWeightTime" of loop-player
+		
+		add -0.05 to {_cal}
+		modifyCalories(loop-player, {_cal}, true)
+
+function getWeightColor(n: number) :: string:
+	set {_n} to 1000 if {_n} > 1000
+	set {_n} to {_n}/1000
+	set {_r::1} to resolver("number", {_n})
+	set {_return} to minimessage from "<transition:##25ba48:##ba2525:%{_n}%>|</transition>" with {_r::*}
+	set {_return} to "%{_return}%"
+	return {_return}
+
+function modifyCalories(p: player, n: number, silent: boolean = false):
+	set {_n} to {_n}/100
+	set {_weight} to yaml value "weight" from {_p}'s uuid
+	set {_newWeight} to {_weight} + {_n}
+	if {_newWeight} < 50:
+		add abs({_newWeight} - 50) to {_n}
+		set {_newWeight} to 50
+	set yaml value "weight" from {_p}'s uuid to {_newWeight}
+	set {_p}'s movement speed attribute to 0.1-({_newWeight}/10000)
+	set {_p}'s jump strength attribute to 0.41-({_newWeight}/4100)
+	set {_p}'s scale attribute to 1+({_newWeight}/10000)
+	{_silent} is false
+	set {_wei} to metadata tag "addedWeight" of {_p}
+	if {_n} < 0:
+		if {_wei} < 0:
+			add {_n} to {_wei}
+		else:
+			set {_wei} to {_n}
+	else if {_n} >= 0:
+		if {_wei} >= 0:
+			add {_n} to {_wei}
+		else:
+			set {_wei} to {_n}
+	set metadata tag "addedWeight" of {_p} to {_wei}
+	set metadata tag "addedWeightTime" of {_p} to now
+
+on right click:
+	set {_cal} to double tag "foodInfo;calories" of nbt of held item of player
+	{_cal} is set
+	cancel event
+	metadata tag "isEating" of player is not set
+	set metadata tag "isEating" of player to 1
+	set {_spoiled} to int tag "foodInfo;isSpoiled" of nbt of held item of player
+	set {_i} to held item of player
+	loop round(log(abs({_cal})/50)*10) times:
+		if held item of player is not {_i}:
+			delete metadata tag "isEating" of player
+			stop
+		play sound "entity.generic.eat" with volume 1 with pitch (a random number between 0.9 and 1.1) at player
+		set {_v} to vector between player's head and location 1 in front of player's head
+		loop 3 times:
+			make 0 of item using {_i} at player's head with offset {_v} with extra 0.1 with force
+		wait 4 tick
+	play sound "entity.player.burp" with volume 1 with pitch 1 at player
+	set {_v} to vector between player's head and location 1 in front of player's head
+	loop 100 times:
+		make 0 of item using {_i} at player's head with offset {_v} with extra 0.1 with force
+	delete metadata tag "isEating" of player
+	modifyCalories(player, {_cal})
+	

@@ -1,0 +1,242 @@
+#v1.01
+
+# -------------------------------------------------------------
+
+#  (!) THIS SCRIPT REQUIRES SKRIPT-REFLECT AND SKRIPT-YAML (!)
+
+# -------------------------------------------------------------
+
+# Skript-reflect imports
+import:
+	org.apache.commons.lang3.StringUtils
+# 'exampleSkill[maxlevel;startxp;scaling]' maxlevel is the maximum level the skill can reach, startxp is the amount of xp 
+# the first level requires, and scaling is how the xp required for each level is handled e.g 3 is 3x required xp per level
+
+# Main options for the script \/
+options:
+	skills: "combat[10;1000;1.25]", "mining[100;10;1.25]"
+	levelupTitle: &a&lLEVEL UP # The Title message when a player levels up
+	levelupSound: entity.player.levelup # The sound played when a player levels up
+	skillMaxedTitle: &6&lSKILL MAXED # The title message when a player maxes a skill
+	skillMaxedSound: entity.ender_dragon.growl # The sound played when a player maxes a skill
+	#useAlternateDisplay: true
+
+#Commands
+command /skills <player>:
+	usage: &c&lERROR &7Invalid argument(s), try &f/skills &e<player>&7.
+	executable by: player
+	permission: skript.commands.skills
+	trigger:
+		arg-1 is set
+		set {_message} to getSkillsInfo(arg-1)
+		send "%nl%&8&m            &r &7%event-player%'s Skills &8&m            "
+		send {_message} to event-player
+		send "%nl%&8&m            &r &7%event-player%'s Skills &8&m            "
+
+# The function for the sound that is played when a player levels up
+function levelSound(p: player):
+	play sound "{@levelupSound}" with volume 1 with pitch 0 for {_p}
+
+# The function for the sound that is played when a player reaches the max level of a skill
+function maxLevelSound(p: player):
+	play sound "{@skillMaxedSound}" with volume 1 with pitch 2 for {_p}
+
+# The function that handles giving skill experience to players
+function xp(p: player, amt: number, skill: string, notify: boolean = true):
+	"%{@skills}%" contains {_skill}
+	set {_xp} to yaml value "%{_skill}%-experience" from {_p}'s uuid+0
+	set {_xpNew} to {_xp}+{_amt}
+	set {_level} to yaml value "%{_skill}%-level" from {_p}'s uuid+0
+	set {_requiredxp} to xpCalc({_skill}, {_level})
+	set {_maxlevel} to getSkillAttribute({_skill}, "maxlevel")
+	if {_xpNew} >= {_requiredxp}:
+		{_level} < {_maxlevel}
+		set {_remainder} to difference between {_xpNew} and {_requiredxp}
+		set {_skillLevelAmt} to 1
+		while 1 = 1:
+			add 1 to {_n}
+			set {_xpCalc} to xpCalc({_skill}, {_level}+{_n})
+			if {_remainder} >= {_xpCalc}:
+				add 1 to {_skillLevelAmt}
+				continue
+			stop loop
+		set {_skillLevelAmt} to difference between {_level} and {_maxlevel} if {_level} + {_skillLevelAmt} > {_maxlevel}
+		{_skillLevelAmt} > 0
+		levelup({_p}, {_skill}, {_skillLevelAmt}, {_notify})
+		set {_levelled} to 1
+	set yaml value "%{_skill}%-experience" from {_p}'s uuid to {_xpNew} if {_levelled} is not set
+	{_notify} is true
+	set {_xpNew} to {_requiredxp} if {_xpNew} > {_requiredxp}
+	set {_display} to "&8(&7%alt formatted number from {_xpNew}%&8/&7%alt formatted number from {_requiredxp}%&8)"
+	#set {_display} to ProgressBar({_xpNew},{_requiredxp},10) if {@useAlternateDisplay} is true
+	set {_display} to "&a&lMAXED" if {_level} >= {_maxlevel}
+	send action bar "&a+%alt formatted number from {_amt}% &7%{_skill} in strict proper case% Experience %{_display}%" to {_p}
+
+# The function that handles player skill level ups
+function levelup(p: player, skill: string, amt: number, notify: boolean = true):
+	"%{@skills}%" contains {_skill}
+	set {_level} to yaml value "%{_skill}%-level" from {_p}'s uuid+0
+	set {_maxlevel} to getSkillAttribute({_skill}, "maxlevel")
+	set yaml value "%{_skill}%-experience" from {_p}'s uuid to 0
+	set {_levelNew} to {_level}+{_amt}
+	if {_levelNew} > {_maxLevel}:
+		set {_levelNew} to {_maxLevel}
+	set {_diff} to difference between {_level} and {_levelNew}
+	set yaml value "%{_skill}%-level" from {_p}'s uuid to {_levelNew}
+	{_notify} is true
+	send title "{@levelupTitle}" with subtitle "&a%{_skill} in strict proper case% %roman numeral of {_level}% &7> &a%{_skill} in strict proper case% %roman numeral of {_levelNew}%" to {_p} for 3 second
+	levelSound({_p})
+	{_levelNew} >= {_maxlevel}
+	wait 3 second
+	send title "{@skillMaxedTitle}" with subtitle "&7You maxed out the &a%{_skill} in strict proper case%&7 skill!" to {_p} for 3 second
+	maxLevelSound({_p})
+	
+# Calculates how much xp is required for a skill level up
+function xpCalc(skill: string, level: integer) :: number:
+	"%{@skills}%" contains {_skill}
+	set {_startxp} to getSkillAttribute({_skill}, "startxp")
+	set {_scaling} to getSkillAttribute({_skill}, "scaling")
+	set {_return} to {_startxp} * {_scaling} ^ {_level}
+	return {_return}
+
+# Gets an attribute of a skill (e.g the scaling of a skill)
+function getSkillAttribute(skill: string, type: string) :: number:
+	"%{@skills}%" contains {_skill}
+	set {_skills::*} to {@skills}
+	loop {_skills::*}:
+		loop-value contains {_skill}
+		set {_skillValue} to loop-value
+	set {_skillValue} to StringUtils.substringBetween({_skillValue}, "[", "]")
+	set {_skillValues::*} to split {_skillValue} at ";"
+	if {_type} is "maxlevel":
+		set {_return} to {_skillValues::1}
+	else if {_type} is "startxp":
+		set {_return} to {_skillValues::2}
+	else if {_type} is "scaling":
+		set {_return} to {_skillValues::3}
+	else:
+		send "&c[ERROR] Malformed skill type ""%{_type}%"" given to getSkillAttribute()" to console
+	return "%{_return}%" parsed as a number
+
+function getSkillName(skill: string) :: string:
+	set {_f} to first character of {_skill}
+	set {_skill} to StringUtils.substringBetween({_skill}, "", "[")
+	return {_skill}
+
+function getSkillsInfo(p: player) :: string:
+	set {_skills::*} to {@skills}
+	loop {_skills::*}:
+		set {_skill} to getSkillName(loop-value)
+		set {_maxlevel} to getSkillAttribute({_skill}, "maxlevel")
+		set {_level} to yaml value "%{_skill}%-level" from {_p}'s uuid
+		set {_xp} to yaml value "%{_skill}%-experience" from {_p}'s uuid
+		set {_display} to "&8(&7%alt formatted number from {_xp}%&8/&7%alt formatted number from {_requiredxp}%&8)"
+		set {_display} to "&a&lMAXED" if {_level} >= {_maxlevel}
+		set {_requiredxp} to xpCalc({_skill}, {_level})
+		add "%nl%&a♦ &7%{_skill} in strict proper case% Skill &f%roman numeral of {_level}% %{_display}%" to {_info::*}
+	return join {_info::*} with nl
+
+# Sets the skill level of a skill for a player
+function setSkillLevel(p: player, skill: string, level: integer):
+	"%{@skills}%" contains {_skill}
+	set {_maxlevel} to getSkillAttribute({_skill}, "maxlevel")
+	set {_level} to {_maxlevel} if {_level} > {_maxlevel}
+	set {_level} to 0 if {_level} < 0
+	set yaml value "%{_skill}%-level" from {_p}'s uuid to {_level}
+	set yaml value "%{_skill}%-experience" from {_p}'s uuid to 0
+	send "&a♦ &7Your &a%{_skill} in strict proper case%&7 skill was set to level &a%roman numeral of {_level}%&7." to {_p}
+
+
+# --------------------------------------------------------------
+
+#  (!) BELOW ARE EXAMPLES OF HOW TO MAKE A LEVELLABLE SKILL (!)
+
+# --------------------------------------------------------------
+
+
+# Example event for a simple combat skill
+on death:
+	attacker is a player
+	victim is not a player
+	set {_fort} to looting level of attacker's tool
+	set {_max} to maximum health of victim
+	set {_rand} to a random number between {_max}*2 and {_max}*4
+	chance of 1%:
+		set {_rand} to {_max}*10
+		send "&7Lucky Experience Multi &ax10&7!" to attacker
+	xp(attacker, {_rand} * (1+{_fort}), "combat")
+
+on mine of any ore:
+	set {_rand} to a random number between 0.1 and 5
+	set {_fort} to 1+(fortune level of player's tool)
+	xp(player, {_rand} * {_fort}, "mining")
+
+# ------------------------------------------------------
+
+#  (!) I DID NOT CREATE THE UTILITY FUNCTIONS BELOW (!)
+
+# ------------------------------------------------------
+
+
+# Snippet posted by cheezburga
+on load:
+    set {-roman::numerals::*} to ("M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I")
+    set {-roman::values::*} to (1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1)
+expression roman [numeral] (of|from) %integers%:
+    get:
+        loop exprs-1:
+            clear {_numeral::*}
+            set {_i} to loop-value
+            loop (size of {-roman::values::*}) times:
+                while {_i} >= {-roman::values::%loop-value-2%}:
+                    subtract {-roman::values::%loop-value-2%} from {_i}
+                    add {-roman::numerals::%loop-value-2%} to {_numeral::*}
+            add (join {_numeral::*} using "") to {_return::*}
+        set {_return::*} to 0 if {_return::*} is not set
+        return {_return::*}
+expression [arabic] number (of|from) %strings%:
+    get:
+        loop exprs-1:
+            delete {_result}
+            set {_r} to (loop-value in upper case)
+            if {_r} matches "^M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$":
+                set {_r::*} to ({_r} split at "")
+                loop reversed (size of {_r::*}) times:
+                    delete {_value}
+                    set {_char} to {_r::%loop-value-2%}
+                    loop (size of {-roman::numerals::*}) times:
+                        if {-roman::numerals::%loop-value-3%} is {_char}:
+                            set {_value} to {-roman::values::%loop-value-3%}
+                            exit loop
+                    if {_value} < {_prev}:
+                        subtract {_value} from {_result}
+                    else:
+                        add {_value} to {_result}
+                    set {_prev} to {_value}
+                add {_result} to {_return::*}
+                continue
+            add (-1) to {_return::*}
+        return {_return::*}
+
+# Snippet posted by m.y3806
+expression formatted [number] (of|from) %numbers%:
+	get:
+		return join (regex split "%exprs-1%" by "(?<=\d)(?=(\d\d\d)+(?!\d))") by ","
+
+# Snippet posted by Font#3138
+expression alt formatted [number] (of|from) %numbers%:
+	get:
+		set {_n} to "%exprs-1%" parsed as a number
+		set {_s::*} to split "k,M,B,T,Q,QI,Sx,Sp,O,N,D,U,Du,Td,Qa,Qi,Sxd,Spd,Od,Nd,Vi" at ","
+		set {_div} to floor(log(max(abs({_n}), 1), 1000))
+		return "%{_n} / (1000 ^ {_div})%%{_s::%{_div}%} ? ""%"
+
+# Snippet posted by DeafMole#2930
+function ProgressBar(cur:number,max:num,size:integer) :: text:
+  set {_percent} to {_size}*({_cur}/{_max})
+  loop {_size} times:
+    if loop-value is greater than {_percent}:
+      add "&7&l&m " to {_list::*} 
+    else:
+      add "&a&l&m " to {_list::*} 
+  return join {_list::*}  
